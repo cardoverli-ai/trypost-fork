@@ -221,7 +221,9 @@ const getMediaIncompatibilityReason = (contentType: string, mediaItems: MediaIte
 const PLATFORM_VARIANTS: Record<string, string[]> = {
     [Platform.Facebook]: [ContentType.FacebookPost, ContentType.FacebookReel, ContentType.FacebookStory],
     [Platform.Instagram]: [ContentType.InstagramFeed, ContentType.InstagramReel, ContentType.InstagramStory],
-    [Platform.LinkedIn]: [ContentType.LinkedInPost, ContentType.LinkedInCarousel, ContentType.LinkedInPagePost, ContentType.LinkedInPageCarousel],
+    [Platform.InstagramFacebook]: [ContentType.InstagramFeed, ContentType.InstagramReel, ContentType.InstagramStory],
+    [Platform.LinkedIn]: [ContentType.LinkedInPost, ContentType.LinkedInCarousel],
+    [Platform.LinkedInPage]: [ContentType.LinkedInPagePost, ContentType.LinkedInPageCarousel],
     [Platform.TikTok]: [ContentType.TikTokVideo, ContentType.TikTokPhoto],
     [Platform.Pinterest]: [ContentType.PinterestPin, ContentType.PinterestVideoPin, ContentType.PinterestCarousel],
 };

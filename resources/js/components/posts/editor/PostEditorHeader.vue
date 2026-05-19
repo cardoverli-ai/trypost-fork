@@ -28,7 +28,7 @@ const emit = defineEmits<{
     (e: 'submit', status: string): void;
 }>();
 
-const READONLY_STATUSES: readonly string[] = [PostStatus.Publishing, PostStatus.Published, PostStatus.PartiallyPublished];
+const READONLY_STATUSES: readonly string[] = [PostStatus.Publishing, PostStatus.Published, PostStatus.PartiallyPublished, PostStatus.Failed];
 const PUBLISHED_STATUSES: readonly string[] = [PostStatus.Published, PostStatus.PartiallyPublished];
 
 const isReadOnly = computed(() => READONLY_STATUSES.includes(props.post.status));
@@ -125,7 +125,7 @@ const isPublished = computed(() => PUBLISHED_STATUSES.includes(props.post.status
                     type="button"
                     :disabled="isPostActionDisabled"
                     :title="postActionTooltip"
-                    @click="emit('submit', hasPickedTime ? 'scheduled' : 'publishing')"
+                    @click="emit('submit', hasPickedTime ? PostStatus.Scheduled : PostStatus.Publishing)"
                 >
                     {{ hasPickedTime ? $t('posts.edit.schedule') : $t('posts.edit.post_now') }}
                 </Button>
