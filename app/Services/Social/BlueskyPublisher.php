@@ -30,7 +30,6 @@ class BlueskyPublisher
         // Refresh token if needed
         if ($account->is_token_expired || $account->is_token_expiring_soon) {
             app(ConnectionVerifier::class)->refreshToken($account);
-            $account->refresh();
         }
 
         $medias = $postPlatform->post->mediaItems;

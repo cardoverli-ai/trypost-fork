@@ -99,9 +99,8 @@ class ConnectionVerifier
                 Platform::Pinterest => $this->refreshPinterestToken($account),
                 Platform::Threads => $this->refreshThreadsToken($account),
                 Platform::Instagram => $this->refreshInstagramToken($account),
-                // InstagramFacebook uses page tokens that don't expire (like Facebook)
-                // Mastodon tokens don't expire
-                // Mastodon tokens don't expire
+                // Facebook / InstagramFacebook use Page tokens that don't expire.
+                // Mastodon tokens don't expire either.
                 default => null,
             };
         } finally {

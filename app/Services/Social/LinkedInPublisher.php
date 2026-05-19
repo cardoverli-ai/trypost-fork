@@ -47,7 +47,6 @@ class LinkedInPublisher
 
         if ($this->account->is_token_expired || $this->account->is_token_expiring_soon) {
             app(ConnectionVerifier::class)->refreshToken($this->account);
-            $this->account->refresh();
         }
 
         $this->accessToken = $this->account->access_token;
@@ -76,7 +75,6 @@ class LinkedInPublisher
 
         try {
             app(ConnectionVerifier::class)->refreshToken($this->account);
-            $this->account->refresh();
             $this->accessToken = $this->account->access_token;
 
             $personUrn = "urn:li:person:{$this->account->platform_user_id}";

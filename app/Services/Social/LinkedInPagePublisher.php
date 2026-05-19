@@ -47,7 +47,6 @@ class LinkedInPagePublisher
 
         if ($this->account->is_token_expired || $this->account->is_token_expiring_soon) {
             app(ConnectionVerifier::class)->refreshToken($this->account);
-            $this->account->refresh();
         }
 
         $this->accessToken = $this->account->access_token;
@@ -82,7 +81,6 @@ class LinkedInPagePublisher
 
         try {
             app(ConnectionVerifier::class)->refreshToken($this->account);
-            $this->account->refresh();
             $this->accessToken = $this->account->access_token;
 
             $organizationId = $this->account->meta['organization_id'] ?? null;

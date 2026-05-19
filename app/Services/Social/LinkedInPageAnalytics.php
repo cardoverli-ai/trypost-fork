@@ -52,7 +52,6 @@ class LinkedInPageAnalytics
 
         if ($account->is_token_expired || $account->is_token_expiring_soon) {
             app(ConnectionVerifier::class)->refreshToken($account);
-            $account->refresh();
         }
 
         // platform_post_id is the share URN (e.g., "urn:li:share:12345").
@@ -82,7 +81,6 @@ class LinkedInPageAnalytics
     {
         if ($account->is_token_expired || $account->is_token_expiring_soon) {
             app(ConnectionVerifier::class)->refreshToken($account);
-            $account->refresh();
         }
 
         $this->accessToken = $account->access_token;

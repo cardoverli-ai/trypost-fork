@@ -31,7 +31,6 @@ class InstagramPublisher
 
         if ($account->is_token_expired || $account->is_token_expiring_soon) {
             app(ConnectionVerifier::class)->refreshToken($account);
-            $account->refresh();
         }
 
         $instagramId = $account->platform_user_id;

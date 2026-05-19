@@ -35,7 +35,6 @@ class PinterestPublisher
 
         if ($account->is_token_expired || $account->is_token_expiring_soon) {
             app(ConnectionVerifier::class)->refreshToken($account);
-            $account->refresh();
         }
 
         $content = $postPlatform->post->content ? app(ContentSanitizer::class)->sanitize($postPlatform->post->content, $postPlatform->platform) : null;
@@ -407,7 +406,6 @@ class PinterestPublisher
     {
         if ($account->is_token_expired || $account->is_token_expiring_soon) {
             app(ConnectionVerifier::class)->refreshToken($account);
-            $account->refresh();
         }
 
         $response = $this->socialHttp()->withToken($account->access_token)

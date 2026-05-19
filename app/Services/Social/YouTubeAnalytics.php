@@ -48,7 +48,6 @@ class YouTubeAnalytics
 
         if ($account->is_token_expired || $account->is_token_expiring_soon) {
             app(ConnectionVerifier::class)->refreshToken($account);
-            $account->refresh();
         }
 
         $this->accessToken = $account->access_token;
@@ -100,7 +99,6 @@ class YouTubeAnalytics
     {
         if ($account->is_token_expired || $account->is_token_expiring_soon) {
             app(ConnectionVerifier::class)->refreshToken($account);
-            $account->refresh();
         }
 
         $this->accessToken = $account->access_token;
