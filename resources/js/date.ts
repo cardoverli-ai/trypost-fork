@@ -177,6 +177,18 @@ export default {
     },
 
     /**
+     * Inverso de `formatUtcForDateTimeLocalInput`: recebe uma string vinda de um
+     * input `datetime-local` (no timezone do usuário) e devolve uma ISO 8601 em
+     * UTC pronta para enviar à API. Retorna `null` quando não houver data.
+     * @param date - String do input (YYYY-MM-DDTHH:mm[:ss]) ou nulo
+     * @returns ISO 8601 em UTC (ex.: 2026-05-19T19:40:00Z) ou null
+     */
+    formatLocalDateTimeForApi(date: string | null | undefined): string | null {
+        if (!date) return null;
+        return dayjs.tz(date, getUserTimezone()).utc().format();
+    },
+
+    /**
      * Formata minutos para formato legível
      * @param minutes - Número de minutos
      * @returns String formatada (ex: "1h", "1h 41min", "30min")

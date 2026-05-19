@@ -236,9 +236,7 @@ const getSubmitData = () => {
         content: content.value,
         media: media.value,
         platforms,
-        scheduled_at: scheduledDateTime.value
-            ? dayjs(scheduledDateTime.value).utc().format()
-            : null,
+        scheduled_at: date.formatLocalDateTimeForApi(scheduledDateTime.value),
         label_ids: selectedLabelIds.value,
     };
 };

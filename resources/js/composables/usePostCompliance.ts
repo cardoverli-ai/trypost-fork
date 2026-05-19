@@ -1,5 +1,5 @@
-import { computed, type ComputedRef, type Ref } from 'vue';
 import { trans } from 'laravel-vue-i18n';
+import { computed, type ComputedRef, type Ref } from 'vue';
 
 import { getMediaItemIssue, type MediaItem } from '@/composables/useMedia';
 import { getMediaRulesForContentType } from '@/composables/useMediaRules';
