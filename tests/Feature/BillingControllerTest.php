@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\Workspace;
 
 beforeEach(function () {
+    config(['trypost.billing.require_card_for_trial' => true]);
+
     $this->account = Account::factory()->create();
     $this->user = User::factory()->create([
         'account_id' => $this->account->id,
@@ -140,6 +142,20 @@ test('subscribe page exposes trialDays prop', function () {
     $response->assertInertia(fn ($page) => $page
         ->component('billing/Subscribe', false)
         ->where('trialDays', config('cashier.trial_days'))
+    );
+});
+
+test('subscribe page exposes null trialDays when card is not required', function () {
+    config([
+        'trypost.self_hosted' => false,
+        'trypost.billing.require_card_for_trial' => false,
+    ]);
+
+    $response = $this->actingAs($this->user)->get(route('app.subscribe'));
+
+    $response->assertInertia(fn ($page) => $page
+        ->component('billing/Subscribe', false)
+        ->where('trialDays', null)
     );
 });
 
