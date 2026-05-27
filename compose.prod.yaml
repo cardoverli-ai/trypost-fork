@@ -40,11 +40,11 @@ services:
       BROADCAST_CONNECTION: reverb
 
       # ===== WebSockets (Reverb) =====
-      # These are the INTERNAL server->Reverb connection — leave as-is even on a
-      # domain. The browser derives the WebSocket host from its own URL, and the
-      # in-container nginx proxies it on /app, so it just works on any domain.
+      # The published image bakes the client at localhost:8080. For a custom
+      # domain, rebuild the image with --build-arg VITE_REVERB_HOST=<domain>
+      # VITE_REVERB_PORT=443 VITE_REVERB_SCHEME=https.
       REVERB_APP_ID: "1001"
-      REVERB_APP_KEY: trypost-reverb-key           # matches the key baked into the published image
+      REVERB_APP_KEY: trypost-reverb-key           # must match the key baked into the published image
       REVERB_APP_SECRET: change-me-reverb-secret   # <- change me
       REVERB_HOST: localhost
       REVERB_PORT: "8080"
@@ -105,7 +105,8 @@ services:
       # ANTHROPIC_API_KEY: ""
       # GEMINI_API_KEY: ""
     ports:
-      - "8000:80"     # app (nginx); WebSocket rides this same port via /app
+      - "8000:80"     # app (nginx)
+      - "8080:8080"   # Reverb WebSocket
     volumes:
       - storage:/var/www/html/storage/app
     depends_on:

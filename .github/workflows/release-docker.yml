@@ -63,13 +63,8 @@ jobs:
           target: production
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          # Bake a fixed public Reverb key; leave host/port/scheme empty so the
-          # frontend derives them from window.location (works on any domain).
           build-args: |
             VITE_REVERB_APP_KEY=trypost-reverb-key
-            VITE_REVERB_HOST=
-            VITE_REVERB_PORT=
-            VITE_REVERB_SCHEME=
           cache-from: type=gha,scope=${{ env.PLATFORM_PAIR }}
           cache-to: type=gha,mode=max,scope=${{ env.PLATFORM_PAIR }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
