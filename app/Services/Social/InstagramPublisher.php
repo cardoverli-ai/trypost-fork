@@ -79,7 +79,7 @@ class InstagramPublisher
 
     private function publishSingleImage(string $instagramId, string $accessToken, ?string $content, $media, ?string $aspectRatio): array
     {
-        $imageUrl = $this->cropImageForAspectRatio($media->url, $aspectRatio, 'instagram-crops');
+        $imageUrl = $this->cropImageForAspectRatio($media->url, $aspectRatio);
 
         // Step 1: Create container
         $containerResponse = $this->socialHttp()->post("{$this->baseUrl}/{$instagramId}/media", [
@@ -205,7 +205,7 @@ class InstagramPublisher
                 $params['video_url'] = $media->url;
                 $params['media_type'] = 'VIDEO';
             } else {
-                $params['image_url'] = $this->cropImageForAspectRatio($media->url, $aspectRatio, 'instagram-crops');
+                $params['image_url'] = $this->cropImageForAspectRatio($media->url, $aspectRatio);
             }
 
             $containerResponse = $this->socialHttp()->post("{$this->baseUrl}/{$instagramId}/media", $params);

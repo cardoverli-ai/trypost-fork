@@ -117,7 +117,7 @@ class FacebookPublisher
     private function publishSingleImagePost(string $pageId, string $accessToken, ?string $content, $media, ?string $aspectRatio): array
     {
         $payload = [
-            'url' => $this->cropImageForAspectRatio($media->url, $aspectRatio, 'facebook-crops'),
+            'url' => $this->cropImageForAspectRatio($media->url, $aspectRatio),
             'access_token' => $accessToken,
         ];
 
@@ -155,7 +155,7 @@ class FacebookPublisher
             }
 
             $uploadResponse = $this->facebookHttp()->post("{$this->baseUrl}/{$pageId}/photos", [
-                'url' => $this->cropImageForAspectRatio($media->url, $aspectRatio, 'facebook-crops'),
+                'url' => $this->cropImageForAspectRatio($media->url, $aspectRatio),
                 'published' => 'false',
                 'access_token' => $accessToken,
             ]);

@@ -665,7 +665,7 @@ test('facebook single image post applies the selected aspect ratio crop and uplo
 
     $this->publisher->publish($this->postPlatform);
 
-    $crops = collect(Storage::allFiles())->filter(fn (string $path) => str_starts_with($path, 'facebook-crops/'));
+    $crops = collect(Storage::allFiles())->filter(fn (string $path) => str_starts_with($path, 'social-crops/'));
     expect($crops)->toHaveCount(1);
 
     $manager = new ImageManager(Driver::class);
@@ -676,7 +676,7 @@ test('facebook single image post applies the selected aspect ratio crop and uplo
     @unlink($tempFile);
 
     Http::assertSent(fn ($request) => str_contains($request->url(), '/page_123/photos')
-        && str_contains($request['url'], 'facebook-crops/')
+        && str_contains($request['url'], 'social-crops/')
         && ! str_contains($request['url'], 'example.com'));
 })->with([
     '1:1' => ['1:1', 1.0],
@@ -706,7 +706,7 @@ test('facebook multi image post applies the aspect ratio crop to every image', f
 
     $this->publisher->publish($this->postPlatform);
 
-    $crops = collect(Storage::allFiles())->filter(fn (string $path) => str_starts_with($path, 'facebook-crops/'));
+    $crops = collect(Storage::allFiles())->filter(fn (string $path) => str_starts_with($path, 'social-crops/'));
     expect($crops)->toHaveCount(2);
 
     $manager = new ImageManager(Driver::class);
@@ -719,7 +719,7 @@ test('facebook multi image post applies the aspect ratio crop to every image', f
     }
 
     Http::assertSent(fn ($request) => str_contains($request->url(), '/page_123/photos')
-        && str_contains($request['url'] ?? '', 'facebook-crops/'));
+        && str_contains($request['url'] ?? '', 'social-crops/'));
 });
 
 test('facebook image post throws when the source image cannot be downloaded for cropping', function () {
@@ -755,7 +755,29 @@ test('facebook single image post without aspect ratio uploads the original image
 
     $this->publisher->publish($this->postPlatform);
 
-    expect(collect(Storage::allFiles())->filter(fn (string $path) => str_starts_with($path, 'facebook-crops/')))->toBeEmpty();
+    expect(collect(Storage::allFiles())->filter(fn (string $path) => str_starts_with($path, 'social-crops/')))->toBeEmpty();
+
+    Http::assertSent(fn ($request) => str_contains($request->url(), '/page_123/photos')
+        && $request['url'] === 'https://example.com/media/a.jpg');
+});
+
+test('facebook single image post with original aspect ratio uploads the original image (no crop)', function () {
+    Storage::fake();
+
+    $this->postPlatform->update(['meta' => ['aspect_ratio' => 'original']]);
+    $this->post->update([
+        'media' => [
+            ['id' => 'm1', 'path' => 'media/a.jpg', 'url' => 'https://example.com/media/a.jpg', 'mime_type' => 'image/jpeg', 'original_filename' => 'a.jpg'],
+        ],
+    ]);
+
+    Http::fake([
+        '*/page_123/photos' => Http::response(['id' => 'photo_1', 'post_id' => 'post_1'], 200),
+    ]);
+
+    $this->publisher->publish($this->postPlatform);
+
+    expect(collect(Storage::allFiles())->filter(fn (string $path) => str_starts_with($path, 'social-crops/')))->toBeEmpty();
 
     Http::assertSent(fn ($request) => str_contains($request->url(), '/page_123/photos')
         && $request['url'] === 'https://example.com/media/a.jpg');

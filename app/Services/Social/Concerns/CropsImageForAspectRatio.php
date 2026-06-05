@@ -12,12 +12,14 @@ use Illuminate\Support\Str;
 
 trait CropsImageForAspectRatio
 {
+    private const CROP_DIRECTORY = 'social-crops';
+
     /**
      * Crop the image to the user-selected aspect ratio and return a public URL
      * the platform can fetch. Returns the original URL untouched when no ratio
      * is set or 'original' is selected.
      */
-    protected function cropImageForAspectRatio(string $imageUrl, ?string $aspectRatio, string $pathPrefix): string
+    protected function cropImageForAspectRatio(string $imageUrl, ?string $aspectRatio): string
     {
         if (! $aspectRatio || $aspectRatio === 'original') {
             return $imageUrl;
@@ -36,7 +38,7 @@ trait CropsImageForAspectRatio
 
             $cropped = app(MediaOptimizer::class)->cropToAspectRatio($tempInput, $ratio);
 
-            $path = "{$pathPrefix}/".Str::uuid()->toString().'.jpg';
+            $path = self::CROP_DIRECTORY.'/'.Str::uuid()->toString().'.jpg';
             Storage::put($path, file_get_contents($cropped));
 
             @unlink($cropped);
