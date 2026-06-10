@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 
+import CodeEditor from '@/components/CodeEditor.vue';
 import InputError from '@/components/InputError.vue';
 import { Input } from '@/components/ui/input';
 import {
@@ -10,7 +11,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 
 interface WebhookConfig {
     url: string;
@@ -33,6 +33,19 @@ const local = ref<WebhookConfig>({
 });
 
 watch(local, (val) => emit('update', val), { deep: true });
+
+const isPayloadJsonInvalid = computed(() => {
+    const value = local.value.payload_template.trim();
+    if (value === '') {
+        return false;
+    }
+    try {
+        JSON.parse(value);
+        return false;
+    } catch {
+        return true;
+    }
+});
 </script>
 
 <template>
@@ -62,7 +75,12 @@ watch(local, (val) => emit('update', val), { deep: true });
 
         <div>
             <label class="mb-1 block text-sm font-medium">{{ $t('automations.config.webhook.payload_template') }}</label>
-            <Textarea v-model="local.payload_template" :rows="6" placeholder='{"content": "{{ post.content }}"}' />
+            <div class="h-40">
+                <CodeEditor v-model="local.payload_template" language="json" placeholder='{"content": "{{ post.content }}"}' />
+            </div>
+            <p v-if="isPayloadJsonInvalid" class="mt-1 text-xs text-amber-600 dark:text-amber-500">
+                {{ $t('automations.config.invalid_json') }}
+            </p>
             <InputError :message="errors?.payload_template" class="mt-1" />
         </div>
     </div>

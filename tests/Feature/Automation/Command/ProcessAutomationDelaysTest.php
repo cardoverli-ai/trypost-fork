@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Queue;
 it('wakes runs whose next_action_at is in the past', function () {
     Queue::fake();
 
-    $automation = Automation::factory()->create([
+    $automation = Automation::factory()->active()->create([
         'nodes' => [
             ['id' => 't', 'type' => 'trigger', 'position' => ['x' => 0, 'y' => 0], 'data' => []],
             ['id' => 'g', 'type' => 'generate', 'position' => ['x' => 1, 'y' => 0], 'data' => []],

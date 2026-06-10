@@ -20,8 +20,9 @@ use App\Models\Post;
  *
  * When `$withRealData` is false (the default), the run is marked `is_dry_run`
  * so side-effectful nodes (publish, generate, watermark advancement, sibling
- * spawning) short-circuit. The run row is auto-deleted after reaching a
- * terminal state — dry tests intentionally leave no trace.
+ * spawning) short-circuit. Dry-run rows are kept briefly so the editor test
+ * panel can show the completed result, then reaped by the scheduled
+ * `automation:prune-dry-runs` command once past its grace window.
  */
 class TestAutomation
 {

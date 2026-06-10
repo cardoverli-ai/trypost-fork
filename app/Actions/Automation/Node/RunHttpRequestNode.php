@@ -33,6 +33,8 @@ use Throwable;
  */
 class RunHttpRequestNode
 {
+    private const ITEM_HANDLE = 'default';
+
     public function __construct(private ExpressionResolver $resolver) {}
 
     public function __invoke(AutomationRun $run, array $config): NodeRunResult
@@ -130,7 +132,7 @@ class RunHttpRequestNode
             $newItems[] = array_merge($item, ['_key' => $key]);
         }
 
-        if ($useWatermark && $newestSeen !== null && $state !== null) {
+        if ($useWatermark && $newestSeen !== null && $state !== null && ! $run->is_manual) {
             $state->update(['data' => array_merge($state->data ?? [], [
                 'last_item_date' => $newestSeen->toIso8601String(),
             ])]);
@@ -194,7 +196,7 @@ class RunHttpRequestNode
             $request = $request->withHeaders($headers);
         }
 
-        return $request;
+        return $request->withUserAgent(config('trypost.user_agent'));
     }
 
     /**
@@ -252,7 +254,7 @@ class RunHttpRequestNode
     private function findNextNodeId(AutomationRun $run, string $fromNodeId): ?string
     {
         $connection = collect($run->automation->connections ?? [])
-            ->first(fn ($c) => $c['source'] === $fromNodeId && ($c['source_handle'] ?? 'default') === 'default');
+            ->first(fn ($c) => $c['source'] === $fromNodeId && ($c['source_handle'] ?? self::ITEM_HANDLE) === self::ITEM_HANDLE);
 
         return $connection['target'] ?? null;
     }

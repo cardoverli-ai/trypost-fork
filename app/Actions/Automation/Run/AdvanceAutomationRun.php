@@ -22,6 +22,11 @@ class AdvanceAutomationRun
                 'status' => Status::Completed,
                 'finished_at' => now(),
                 'current_node_id' => null,
+                'error' => [
+                    'reason' => 'no_matching_edge',
+                    'handle' => $handle,
+                    'node_id' => $fromNodeId,
+                ],
             ]);
 
             return;

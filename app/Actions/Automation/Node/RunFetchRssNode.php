@@ -30,6 +30,8 @@ use Throwable;
  */
 class RunFetchRssNode
 {
+    private const ITEM_HANDLE = 'default';
+
     public function __invoke(AutomationRun $run, array $config): NodeRunResult
     {
         $feedUrl = (string) data_get($config, 'feed_url', '');
@@ -68,7 +70,7 @@ class RunFetchRssNode
 
         [$newItems, $newestSeen] = $this->collectNewItems($xml, $watermark);
 
-        if ($state !== null && $newestSeen !== null) {
+        if ($state !== null && $newestSeen !== null && ! $run->is_manual) {
             $state->update(['data' => array_merge($state->data ?? [], [
                 'last_item_date' => $newestSeen->toIso8601String(),
             ])]);
@@ -167,7 +169,7 @@ class RunFetchRssNode
     private function findNextNodeId(AutomationRun $run, string $fromNodeId): ?string
     {
         $connection = collect($run->automation->connections ?? [])
-            ->first(fn ($c) => $c['source'] === $fromNodeId && ($c['source_handle'] ?? 'default') === 'default');
+            ->first(fn ($c) => $c['source'] === $fromNodeId && ($c['source_handle'] ?? self::ITEM_HANDLE) === self::ITEM_HANDLE);
 
         return $connection['target'] ?? null;
     }

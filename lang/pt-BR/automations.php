@@ -31,8 +31,11 @@ return [
         'node_input' => 'Entrada',
         'node_output' => 'Saída',
         'node_error' => 'Erro',
+        'no_new_items' => 'Nenhum item novo — nada foi executado adiante.',
         'error_starting' => 'Não foi possível iniciar a execução de teste.',
         'with_real_data' => 'Com dados reais',
+        'run' => 'Rodar teste',
+        'idle_hint' => 'Clique em Rodar teste para executar a automação de ponta a ponta.',
         'real_data_hint' => 'Este teste vai publicar posts, avançar watermarks e disparar efeitos colaterais externos.',
         'dry_badge' => 'Teste seco',
     ],
@@ -90,10 +93,15 @@ return [
         'end_summary' => 'Encerra a automação aqui',
         'fetch_rss' => 'Buscar RSS',
         'http_request' => 'Requisição HTTP',
+        'handles' => [
+            'items' => 'tem itens',
+            'no_items' => 'sem itens',
+        ],
     ],
 
     'config' => [
         'select_placeholder' => 'Selecione…',
+        'invalid_json' => 'Isto ainda não é um JSON válido.',
 
         'trigger' => [
             'type' => 'Tipo de trigger',
@@ -146,14 +154,10 @@ return [
         'generate' => [
             'social_accounts' => 'Contas sociais',
             'social_accounts_empty' => 'Nenhuma conta social conectada. Conecte uma primeiro.',
-            'target_slide_count' => 'Slides a gerar (para plataformas com carrossel)',
+            'target_slide_count' => 'Slides a gerar',
             'prompt_template' => 'Template do prompt',
-            'image_source' => 'Origem da imagem',
-            'image_sources' => [
-                'ai' => 'Gerada por IA',
-                'unsplash' => 'Unsplash',
-                'none' => 'Sem imagem',
-            ],
+            'include_image' => 'Incluir imagem',
+            'include_image_hint' => 'Gerar uma imagem com IA para esta publicação',
         ],
         'delay' => [
             'duration' => 'Duração',
@@ -216,6 +220,10 @@ return [
             'api_key_header' => 'Nome do header',
             'api_key_value' => 'API key',
             'body_template' => 'Template do body (JSON)',
+            'headers' => 'Headers',
+            'header_name' => 'Nome do header',
+            'header_value' => 'Valor',
+            'add_header' => 'Adicionar header',
             'polling_section' => 'Polling (opcional)',
             'polling_hint' => 'Deixe vazio para usar a resposta inteira como payload único. Preencha para extrair um array de itens e disparar um run por item.',
             'items_path' => 'Caminho dos itens',
@@ -244,6 +252,7 @@ return [
         'only_failed_can_retry' => 'Apenas execuções que falharam podem ser repetidas.',
         'no_generated_post' => 'Nenhum post gerado encontrado para esta execução.',
         'webhook_server_error' => 'Erro no servidor do webhook.',
+        'webhook_invalid_payload_json' => 'O template do payload não é um JSON válido.',
         'node_no_longer_exists' => 'O nó :node_id não existe mais nesta automação.',
         'no_trigger_connection' => 'Nenhum nó conectado ao nó de trigger.',
     ],

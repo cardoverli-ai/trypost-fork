@@ -24,9 +24,24 @@ class RunWebhookNode
         }
 
         $payloadJson = $this->resolver->resolve($config['payload_template'] ?? '{}', $run->context ?? []);
-        $payload = json_decode($payloadJson, true) ?? [];
+        $trimmedPayload = trim($payloadJson);
+
+        if ($trimmedPayload !== '' && $trimmedPayload !== 'null') {
+            $decoded = json_decode($payloadJson, true);
+
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return NodeRunResult::failed(__('automations.errors.webhook_invalid_payload_json'), [
+                    'reason' => 'invalid_payload_json',
+                ]);
+            }
+
+            $payload = $decoded ?? [];
+        } else {
+            $payload = [];
+        }
 
         $response = Http::withHeaders($headers)
+            ->withUserAgent(config('trypost.user_agent'))
             ->send($method, $url, ['json' => $payload]);
 
         if ($response->serverError()) {

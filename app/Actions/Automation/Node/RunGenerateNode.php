@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Models\Workspace;
 use App\Services\Ai\RecordAiUsage;
 use App\Services\Automation\ExpressionResolver;
+use App\Services\Image\PostImagePipeline;
 use Illuminate\Support\Facades\Log;
 
 class RunGenerateNode
@@ -100,6 +101,18 @@ class RunGenerateNode
             ];
         }
 
+        $includeImage = (bool) data_get($config, 'include_image', true);
+
+        $brandAccount = $platforms !== []
+            ? $activeAccounts->get(data_get($platforms[0], 'social_account_id'))
+            : null;
+
+        $contentType = $platforms !== []
+            ? ContentType::tryFrom((string) data_get($platforms[0], 'content_type'))
+            : null;
+
+        $imageCount = $this->intendedImageCount($format, $slideCount, $includeImage, $structured, $brandAccount);
+
         // Dry runs do the AI work (so the user sees a real generation) but
         // never persist a Post. Downstream nodes (Publish) read `is_dry_run`
         // and skip their persistence too.
@@ -109,13 +122,24 @@ class RunGenerateNode
                     'post_id' => null,
                     'content' => $content,
                     'dry_run' => true,
+                    'image_count' => $imageCount,
                 ],
             ]);
         }
 
+        $media = [];
+
+        if ($brandAccount) {
+            if ($format === 'carousel') {
+                $media = app(PostImagePipeline::class)->forCarousel($workspace, $brandAccount, $structured, $contentType);
+            } elseif ($includeImage) {
+                $media = app(PostImagePipeline::class)->forSingle($workspace, $brandAccount, $structured, $contentType);
+            }
+        }
+
         $post = CreatePost::execute($workspace, $user, [
             'content' => $content,
-            'media' => [],
+            'media' => $media,
             'platforms' => $platforms,
         ]);
 
@@ -237,6 +261,28 @@ class RunGenerateNode
         }
 
         return ['format' => 'single', 'slide_count' => 1];
+    }
+
+    /**
+     * Number of images that would be attached for the resolved format. Used as
+     * the dry-run indicator and mirrors the non-dry image generation branches:
+     * one per slide for carousels, one for single posts when images are enabled.
+     *
+     * @param  array<string, mixed>  $structured
+     */
+    private function intendedImageCount(string $format, int $slideCount, bool $includeImage, array $structured, ?SocialAccount $brandAccount): int
+    {
+        if (! $brandAccount) {
+            return 0;
+        }
+
+        if ($format === 'carousel') {
+            $slides = data_get($structured, 'slides', []);
+
+            return is_array($slides) ? count($slides) : $slideCount;
+        }
+
+        return $includeImage ? 1 : 0;
     }
 
     private function resolveUser(AutomationRun $run): User

@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 
+import { IconPlus, IconTrash } from '@tabler/icons-vue';
+
+import CodeEditor from '@/components/CodeEditor.vue';
 import InputError from '@/components/InputError.vue';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
     Select,
@@ -10,7 +14,6 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 type AuthType = 'none' | 'bearer' | 'basic' | 'api_key';
@@ -23,6 +26,7 @@ interface HttpRequestConfig {
     auth_username: string;
     auth_password: string;
     auth_header_name: string;
+    headers: Record<string, string>;
     body_template: string;
     items_path: string;
     item_key_path: string;
@@ -43,16 +47,65 @@ const local = ref<HttpRequestConfig>({
     auth_username: (props.data.auth_username as string) ?? '',
     auth_password: (props.data.auth_password as string) ?? '',
     auth_header_name: (props.data.auth_header_name as string) ?? 'X-API-Key',
+    headers: (props.data.headers as Record<string, string>) ?? {},
     body_template: (props.data.body_template as string) ?? '',
     items_path: (props.data.items_path as string) ?? '',
     item_key_path: (props.data.item_key_path as string) ?? '',
     item_date_path: (props.data.item_date_path as string) ?? '',
 });
 
+interface HeaderRow {
+    name: string;
+    value: string;
+}
+
+const headerRows = ref<HeaderRow[]>(
+    Object.entries((props.data.headers as Record<string, string>) ?? {}).map(([name, value]) => ({
+        name,
+        value: String(value),
+    })),
+);
+
+watch(
+    headerRows,
+    (rows) => {
+        const headers: Record<string, string> = {};
+        rows.forEach((row) => {
+            const name = row.name.trim();
+            if (name !== '') {
+                headers[name] = row.value;
+            }
+        });
+        local.value.headers = headers;
+    },
+    { deep: true },
+);
+
+const addHeader = (): void => {
+    headerRows.value.push({ name: '', value: '' });
+};
+
+const removeHeader = (index: number): void => {
+    headerRows.value.splice(index, 1);
+};
+
 watch(local, (val) => emit('update', val), { deep: true });
 
 const supportsBody = computed(() => ['POST', 'PUT', 'PATCH'].includes(local.value.method));
 const isPollingMode = computed(() => local.value.items_path.trim() !== '');
+
+const isBodyJsonInvalid = computed(() => {
+    const value = local.value.body_template.trim();
+    if (value === '') {
+        return false;
+    }
+    try {
+        JSON.parse(value);
+        return false;
+    } catch {
+        return true;
+    }
+});
 </script>
 
 <template>
@@ -129,8 +182,44 @@ const isPollingMode = computed(() => local.value.items_path.trim() !== '');
 
         <div v-if="supportsBody">
             <label class="mb-1 block text-sm font-medium">{{ $t('automations.config.http_request.body_template') }}</label>
-            <Textarea v-model="local.body_template" :rows="5" placeholder='{"id": "{{ trigger.post.id }}"}' />
+            <div class="h-36">
+                <CodeEditor v-model="local.body_template" language="json" placeholder='{"id": "{{ trigger.post.id }}"}' />
+            </div>
+            <p v-if="isBodyJsonInvalid" class="mt-1 text-xs text-amber-600 dark:text-amber-500">
+                {{ $t('automations.config.invalid_json') }}
+            </p>
             <InputError :message="errors?.body_template" class="mt-1" />
+        </div>
+
+        <div>
+            <label class="mb-1 block text-sm font-medium">{{ $t('automations.config.http_request.headers') }}</label>
+            <div class="space-y-2">
+                <div v-for="(row, index) in headerRows" :key="index" class="flex items-center gap-2">
+                    <Input
+                        v-model="row.name"
+                        class="flex-1"
+                        :placeholder="$t('automations.config.http_request.header_name')"
+                    />
+                    <Input
+                        v-model="row.value"
+                        class="flex-1"
+                        :placeholder="$t('automations.config.http_request.header_value')"
+                    />
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        class="shrink-0 text-foreground/60 hover:text-destructive"
+                        @click="removeHeader(index)"
+                    >
+                        <IconTrash class="size-4" />
+                    </Button>
+                </div>
+            </div>
+            <Button type="button" variant="outline" size="sm" class="mt-2" @click="addHeader">
+                <IconPlus class="size-4" />
+                {{ $t('automations.config.http_request.add_header') }}
+            </Button>
         </div>
 
         <div class="border-t-2 border-foreground/10 pt-4">

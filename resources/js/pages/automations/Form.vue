@@ -15,7 +15,7 @@ import {
     IconWorld,
     IconX,
 } from '@tabler/icons-vue';
-import { computed, markRaw, nextTick, ref, watch } from 'vue';
+import { computed, markRaw, ref, watch } from 'vue';
 import {
     ConnectionMode,
     MarkerType,
@@ -34,7 +34,6 @@ import '@vue-flow/core/dist/theme-default.css';
 import '@vue-flow/controls/dist/style.css';
 
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import AppLayout from '@/layouts/AppLayout.vue';
 import {
     show as showAutomation,
@@ -190,6 +189,7 @@ const {
 } = useVueFlow();
 
 onNodeClick(({ node }) => {
+    isTestPanelOpen.value = false;
     selectedNodeId.value = node.id;
 });
 
@@ -269,7 +269,7 @@ const defaultConfigFor = (type: string): Record<string, unknown> => {
             schedule_minute: 0,
             schedule_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         };
-        case NodeType.Generate: return { accounts: [], format: 'single', prompt_template: '', image_source: 'ai' };
+        case NodeType.Generate: return { accounts: [], prompt_template: '', include_image: true, target_slide_count: 5 };
         case NodeType.Delay: return { duration: 1, unit: 'hours' };
         case NodeType.Condition: return { field: '', operator: 'contains', value: '' };
         case NodeType.Publish: return { mode: 'now', scheduled_offset: 60 };
@@ -343,15 +343,9 @@ const deleteSelectedNode = () => {
 
 const isSaving = ref(false);
 const isTestPanelOpen = ref(false);
-const testWithRealData = ref(false);
-const testPanelRef = ref<InstanceType<typeof TestRunPanel> | null>(null);
 
-const handleTestClick = async () => {
+const handleTestClick = () => {
     isTestPanelOpen.value = true;
-    // Wait one tick when opening for the first time so v-if mounts the panel
-    // and the ref resolves before we invoke start().
-    await nextTick();
-    testPanelRef.value?.start();
 };
 
 const sanitizeNodes = (list: Node[]) =>
@@ -374,27 +368,32 @@ const sanitizeEdges = (list: Edge[]) =>
         return edge;
     });
 
-const save = () => {
-    if (isSaving.value) return;
-    isSaving.value = true;
-    router.put(
-        updateAutomation.url(props.automation.id),
-        {
-            name: name.value.trim() || props.automation.name,
-            nodes: sanitizeNodes(nodes.value),
-            connections: sanitizeEdges(edges.value),
-        },
-        {
-            preserveScroll: true,
-            onFinish: () => { isSaving.value = false; },
-            onSuccess: () => toast.success(trans('automations.form.save_success')),
-            onError: (errors: Record<string, string>) => {
-                const msg = (errors as any).message ?? trans('automations.form.save_error_fallback');
-                toast.error(msg);
+const save = (): Promise<boolean> =>
+    new Promise((resolve) => {
+        if (isSaving.value) return resolve(false);
+        isSaving.value = true;
+        router.put(
+            updateAutomation.url(props.automation.id),
+            {
+                name: name.value.trim() || props.automation.name,
+                nodes: sanitizeNodes(nodes.value),
+                connections: sanitizeEdges(edges.value),
             },
-        },
-    );
-};
+            {
+                preserveScroll: true,
+                onFinish: () => { isSaving.value = false; },
+                onSuccess: () => {
+                    toast.success(trans('automations.form.save_success'));
+                    resolve(true);
+                },
+                onError: (errors: Record<string, string>) => {
+                    const msg = (errors as any).message ?? trans('automations.form.save_error_fallback');
+                    toast.error(msg);
+                    resolve(false);
+                },
+            },
+        );
+    });
 
 const closePanel = () => {
     selectedNodeId.value = null;
@@ -451,10 +450,6 @@ const defaultEdgeOptions = {
                     class="w-72 rounded-md border-2 border-transparent bg-transparent px-3 py-1 text-center text-sm font-semibold text-foreground transition-colors hover:border-foreground/15 focus:border-foreground focus:bg-background focus:outline-none"
                 />
                 <div class="flex items-center justify-end gap-2">
-                    <label class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-xs font-semibold text-foreground/70 hover:bg-foreground/5">
-                        <Checkbox v-model="testWithRealData" />
-                        {{ $t('automations.test.with_real_data') }}
-                    </label>
                     <Button variant="outline" size="sm" @click="handleTestClick">{{ $t('automations.actions.test') }}</Button>
                     <Button size="sm" @click="save" :disabled="isSaving">{{ $t('automations.actions.save') }}</Button>
                 </div>
@@ -522,10 +517,9 @@ const defaultEdgeOptions = {
 
                 <TestRunPanel
                     v-if="isTestPanelOpen"
-                    ref="testPanelRef"
                     v-model:open="isTestPanelOpen"
                     :automation-id="automation.id"
-                    :with-real-data="testWithRealData"
+                    :before-run="save"
                 />
 
                 <aside

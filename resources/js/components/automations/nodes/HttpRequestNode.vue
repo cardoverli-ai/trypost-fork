@@ -40,6 +40,21 @@ const summary = computed(() => {
             {{ summary }}
         </div>
         <Handle type="target" :position="Position.Left" class="!bg-slate-500" />
-        <Handle type="source" :position="Position.Right" class="!bg-slate-500" />
+        <Handle
+            id="default"
+            type="source"
+            :position="Position.Right"
+            class="!bg-emerald-500"
+            :style="{ top: '35%' }"
+        />
+        <span class="pointer-events-none absolute left-full top-[35%] z-10 ml-3 -translate-y-1/2 whitespace-nowrap rounded bg-background px-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">{{ $t('automations.nodes.handles.items') }}</span>
+        <Handle
+            id="no_items"
+            type="source"
+            :position="Position.Right"
+            class="!bg-rose-500"
+            :style="{ top: '75%' }"
+        />
+        <span class="pointer-events-none absolute left-full top-[75%] z-10 ml-3 -translate-y-1/2 whitespace-nowrap rounded bg-background px-1.5 text-[10px] font-bold uppercase tracking-wider text-rose-700">{{ $t('automations.nodes.handles.no_items') }}</span>
     </div>
 </template>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { IconAlertCircle, IconChevronRight, IconCircleCheck, IconCircleDot, IconLoader2, IconX } from '@tabler/icons-vue';
+import { IconAlertCircle, IconChevronRight, IconCircleCheck, IconCircleDot, IconInfoCircle, IconLoader2, IconPlayerPlay, IconX } from '@tabler/icons-vue';
 import { ref } from 'vue';
 import { toast } from 'vue-sonner';
 import { trans } from 'laravel-vue-i18n';
@@ -7,6 +7,7 @@ import { trans } from 'laravel-vue-i18n';
 import JsonViewer from '@/components/JsonViewer.vue';
 import { useAutomationEcho } from '@/composables/echo/useAutomationEcho';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { test as testAutomation } from '@/routes/app/automations';
 import { showRun as showRunRoute } from '@/actions/App/Http/Controllers/App/AutomationController';
 
@@ -32,11 +33,12 @@ interface Run {
     is_dry_run: boolean;
 }
 
-const props = defineProps<{ automationId: string; withRealData?: boolean }>();
+const props = defineProps<{ automationId: string; beforeRun?: () => Promise<boolean> | boolean }>();
 
 const open = defineModel<boolean>('open', { default: false });
 
 const isStarting = ref(false);
+const realData = ref(false);
 const run = ref<Run | null>(null);
 const nodeRuns = ref<NodeRun[]>([]);
 const activeRunId = ref<string | null>(null);
@@ -83,7 +85,7 @@ const start = async () => {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement | null)?.content ?? '',
             },
-            body: JSON.stringify({ with_real_data: props.withRealData ?? false }),
+            body: JSON.stringify({ with_real_data: realData.value }),
         });
         if (!response.ok) {
             throw new Error('start failed');
@@ -99,19 +101,14 @@ const start = async () => {
     }
 };
 
-// Parent triggers runs imperatively via the template ref so every click on the
-// Test button kicks off a fresh execution — including the first one, since the
-// parent calls `start()` right after toggling the panel open.
-defineExpose({ start });
+const runTest = async () => {
+    if (isStarting.value) return;
+    const proceed = await (props.beforeRun?.() ?? true);
+    if (proceed === false) return;
+    await start();
+};
 
 const close = () => { open.value = false; };
-
-const runStatusIcon = (status: string) => {
-    if (status === 'completed') return IconCircleCheck;
-    if (status === 'failed') return IconAlertCircle;
-    if (status === 'running') return IconLoader2;
-    return IconCircleDot;
-};
 
 const statusLabel = (status: string): string => {
     const map: Record<string, string> = {
@@ -128,6 +125,16 @@ const nodeStatusIcon = (status: string) => {
     if (status === 'failed') return IconAlertCircle;
     if (status === 'running') return IconLoader2;
     return IconCircleDot;
+};
+
+// Fetch nodes (RSS / HTTP) short-circuit via the `no_items` handle with an
+// output of `{ fetch: { count: 0 } }` when nothing new arrived. Surface that
+// as an explicit note instead of an uninformative empty JSON blob.
+const isZeroFetchResult = (nodeRun: NodeRun): boolean => {
+    if (nodeRun.status !== 'completed') return false;
+    if (nodeRun.node_type !== 'fetch_rss' && nodeRun.node_type !== 'http_request') return false;
+    const fetch = nodeRun.output?.fetch as { count?: number } | undefined;
+    return fetch?.count === 0;
 };
 </script>
 
@@ -153,28 +160,36 @@ const nodeStatusIcon = (status: string) => {
             </Button>
         </div>
 
+        <div class="flex items-center justify-between gap-3 rounded-xl border-2 border-foreground bg-card p-3 shadow-[3px_3px_0_var(--foreground)]">
+            <label class="flex cursor-pointer items-center gap-2 text-sm font-semibold text-foreground/70">
+                <Checkbox v-model="realData" :disabled="isStarting" />
+                {{ $t('automations.test.with_real_data') }}
+            </label>
+            <Button size="sm" :disabled="isStarting" @click="runTest">
+                <IconLoader2 v-if="isStarting" class="size-4 animate-spin" />
+                <IconPlayerPlay v-else class="size-4" />
+                {{ $t('automations.test.run') }}
+            </Button>
+        </div>
+
+        <div
+            v-if="run === null && !isStarting"
+            class="rounded-xl border-2 border-dashed border-foreground/25 bg-card/40 p-8 text-center text-sm font-medium text-foreground/60"
+        >
+            {{ $t('automations.test.idle_hint') }}
+        </div>
+
         <div v-if="run === null && isStarting" class="flex items-center gap-2.5 text-sm font-medium text-foreground/70">
             <IconLoader2 class="size-5 animate-spin" />
             {{ $t('automations.test.starting') }}
         </div>
 
-        <div v-if="run" class="flex items-center gap-3 rounded-xl border-2 border-foreground bg-card p-4 shadow-[3px_3px_0_var(--foreground)]">
-            <div
-                :class="[
-                    'inline-flex size-10 -rotate-3 shrink-0 items-center justify-center rounded-xl border-2 border-foreground shadow-2xs',
-                    run.status === 'completed' && 'bg-emerald-200 text-emerald-900',
-                    run.status === 'failed' && 'bg-rose-200 text-rose-900',
-                    run.status === 'running' && 'bg-amber-200 text-amber-900',
-                    !['completed', 'failed', 'running'].includes(run.status) && 'bg-zinc-200 text-zinc-900',
-                ]"
-            >
-                <component :is="runStatusIcon(run.status)" :class="['size-5', run.status === 'running' && 'animate-spin']" stroke-width="2.5" />
-            </div>
-            <div class="min-w-0 flex-1">
-                <p class="text-sm font-black uppercase tracking-wider text-foreground/60">{{ $t('automations.test.title') }}</p>
-                <p class="text-base font-bold">{{ statusLabel(run.status) }}</p>
-                <p v-if="run.error" class="mt-1 text-sm text-rose-700">{{ run.error.message }}</p>
-            </div>
+        <div
+            v-if="run && run.status === 'failed' && run.error?.message"
+            class="flex items-start gap-2.5 rounded-xl border-2 border-rose-700 bg-rose-50 p-4 text-sm font-medium text-rose-800"
+        >
+            <IconAlertCircle class="mt-0.5 size-5 shrink-0" stroke-width="2.5" />
+            <span>{{ run.error.message }}</span>
         </div>
 
         <div v-if="run && nodeRuns.length === 0" class="rounded-xl border-2 border-dashed border-foreground/25 bg-card/40 p-8 text-center text-sm font-medium text-foreground/60">
@@ -211,7 +226,15 @@ const nodeStatusIcon = (status: string) => {
                         <span class="font-black uppercase text-xs tracking-wider">{{ $t('automations.test.node_error') }}:</span>
                         <span class="ml-1">{{ nodeRun.error.message }}</span>
                     </p>
-                    <details v-if="nodeRun.output" class="group" :class="{ 'mt-3': nodeRun.error }">
+                    <p
+                        v-if="isZeroFetchResult(nodeRun)"
+                        class="flex items-center gap-2 rounded-lg border-2 border-foreground/30 bg-card p-3 text-sm font-medium text-foreground/70"
+                        :class="{ 'mt-3': nodeRun.error }"
+                    >
+                        <IconInfoCircle class="size-5 shrink-0 text-foreground/50" stroke-width="2.5" />
+                        {{ $t('automations.test.no_new_items') }}
+                    </p>
+                    <details v-if="nodeRun.output && !isZeroFetchResult(nodeRun)" class="group" :class="{ 'mt-3': nodeRun.error }">
                         <summary class="flex cursor-pointer items-center gap-1.5 text-xs font-black uppercase tracking-wider text-foreground/60 hover:text-foreground">
                             <IconChevronRight class="size-4 transition-transform group-open:rotate-90" stroke-width="2.5" />
                             {{ $t('automations.test.node_output') }}

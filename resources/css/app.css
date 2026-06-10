@@ -171,6 +171,7 @@
 .automation-node {
   position: relative;
   min-width: 230px;
+  max-width: 260px;
   background: var(--card);
   border: 2px solid var(--foreground);
   border-radius: 14px;
@@ -185,6 +186,7 @@
 
 .automation-node--wide {
   min-width: 260px;
+  max-width: 260px;
 }
 
 .automation-node.is-selected {
@@ -233,11 +235,15 @@
 .automation-node--accent-zinc    .automation-node__header { background: #f4f4f5; }
 
 .automation-node__title {
+  min-width: 0;
   font-weight: 700;
   font-size: 0.875rem;
   color: var(--foreground);
   line-height: 1.2;
   letter-spacing: -0.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .automation-node__summary {

@@ -6,6 +6,7 @@ namespace App\Console\Commands\Automation;
 
 use App\Actions\Automation\Run\AdvanceAutomationRun;
 use App\Enums\Automation\Run\Status;
+use App\Enums\Automation\Status as AutomationStatus;
 use App\Models\AutomationRun;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -21,6 +22,9 @@ class ProcessAutomationDelays extends Command
         AutomationRun::query()
             ->where('status', Status::Waiting)
             ->where('next_action_at', '<=', now())
+            ->where(fn ($query) => $query
+                ->where('is_manual', true)
+                ->orWhereHas('automation', fn ($inner) => $inner->where('status', AutomationStatus::Active)))
             ->lockForUpdate()
             ->chunkById(50, function ($runs) use ($advance) {
                 DB::transaction(function () use ($runs, $advance) {

@@ -134,6 +134,38 @@ it('posts a body rendered from the template with run context', function () {
     Http::assertSent(fn ($request) => $request->method() === 'POST' && $request['post_id'] === 'post-42');
 });
 
+it('sends the branded user-agent header', function () {
+    Http::fake(['api.example.com/*' => Http::response(['ok' => true], 200)]);
+
+    $automation = Automation::factory()->active()->create();
+    $run = AutomationRun::factory()->for($automation)->create(['current_node_id' => 'http_1']);
+
+    app(RunHttpRequestNode::class)($run, [
+        'url' => 'https://api.example.com/me',
+        'method' => 'GET',
+        'auth_type' => 'none',
+        'headers' => ['User-Agent' => 'user-supplied-agent'],
+    ]);
+
+    Http::assertSent(fn ($request) => $request->hasHeader('User-Agent', config('trypost.user_agent')));
+});
+
+it('sends custom headers configured in the editor', function () {
+    Http::fake(['api.example.com/*' => Http::response(['ok' => true], 200)]);
+
+    $automation = Automation::factory()->active()->create();
+    $run = AutomationRun::factory()->for($automation)->create(['current_node_id' => 'http_1']);
+
+    app(RunHttpRequestNode::class)($run, [
+        'url' => 'https://api.example.com/me',
+        'method' => 'GET',
+        'auth_type' => 'none',
+        'headers' => ['X-Custom' => 'v'],
+    ]);
+
+    Http::assertSent(fn ($request) => $request->hasHeader('X-Custom', 'v'));
+});
+
 it('fails when url is missing', function () {
     $automation = Automation::factory()->active()->create();
     $run = AutomationRun::factory()->for($automation)->create(['current_node_id' => 'http_1']);

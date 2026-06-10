@@ -9,15 +9,9 @@ import InstagramSettings from '@/components/posts/editor/InstagramSettings.vue';
 import LinkedInSettings from '@/components/posts/editor/LinkedInSettings.vue';
 import PinterestSettings from '@/components/posts/editor/PinterestSettings.vue';
 import TikTokSettings from '@/components/posts/editor/TikTokSettings.vue';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { ContentType } from '@/types/content-type';
 import { Platform } from '@/types/platform';
@@ -50,9 +44,9 @@ interface GenerateAccount {
 
 interface GenerateConfig {
     accounts: GenerateAccount[];
-    target_slide_count?: number;
+    target_slide_count: number;
     prompt_template: string;
-    image_source: 'ai' | 'unsplash' | 'none';
+    include_image: boolean;
 }
 
 const props = defineProps<{
@@ -142,9 +136,9 @@ const normalizeAccountsFromData = (): GenerateAccount[] => {
 
 const local = ref<GenerateConfig>({
     accounts: normalizeAccountsFromData(),
-    target_slide_count: props.data.target_slide_count as number | undefined,
+    target_slide_count: (props.data.target_slide_count as number | undefined) ?? 5,
     prompt_template: (props.data.prompt_template as string) ?? '',
-    image_source: (props.data.image_source as GenerateConfig['image_source']) ?? 'ai',
+    include_image: (props.data.include_image as boolean | undefined) ?? true,
 });
 
 watch(local, (val) => emit('update', val), { deep: true });
@@ -308,30 +302,34 @@ const hasCarouselCapableAccount = computed(() =>
             </template>
         </div>
 
-        <div v-if="hasCarouselCapableAccount">
-            <label class="mb-1 block text-sm font-medium">{{ $t('automations.config.generate.target_slide_count') }}</label>
-            <Input type="number" v-model.number="local.target_slide_count" placeholder="5" />
+        <div v-if="hasCarouselCapableAccount" class="space-y-2">
+            <Label class="text-sm font-bold">{{ $t('automations.config.generate.target_slide_count') }}</Label>
+            <div class="flex flex-wrap gap-2">
+                <Button
+                    v-for="n in [2, 3, 4, 5, 6, 7, 8, 9, 10]"
+                    :key="n"
+                    type="button"
+                    size="icon"
+                    :variant="local.target_slide_count === n ? 'default' : 'outline'"
+                    @click="local.target_slide_count = n"
+                >
+                    {{ n }}
+                </Button>
+            </div>
+        </div>
+
+        <div v-else class="flex items-start justify-between gap-3">
+            <div class="space-y-0.5">
+                <Label class="text-sm font-bold">{{ $t('automations.config.generate.include_image') }}</Label>
+                <p class="text-xs text-foreground/60">{{ $t('automations.config.generate.include_image_hint') }}</p>
+            </div>
+            <Switch v-model="local.include_image" />
         </div>
 
         <div>
             <label class="mb-1 block text-sm font-medium">{{ $t('automations.config.generate.prompt_template') }}</label>
             <Textarea v-model="local.prompt_template" :rows="6" placeholder="Write a social media post about {{ trigger.title }}…" />
             <InputError :message="errors?.prompt_template" class="mt-1" />
-        </div>
-
-        <div>
-            <label class="mb-1 block text-sm font-medium">{{ $t('automations.config.generate.image_source') }}</label>
-            <Select v-model="local.image_source">
-                <SelectTrigger class="w-full">
-                    <SelectValue :placeholder="$t('automations.config.select_placeholder')" />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="ai">{{ $t('automations.config.generate.image_sources.ai') }}</SelectItem>
-                    <SelectItem value="unsplash">{{ $t('automations.config.generate.image_sources.unsplash') }}</SelectItem>
-                    <SelectItem value="none">{{ $t('automations.config.generate.image_sources.none') }}</SelectItem>
-                </SelectContent>
-            </Select>
-            <InputError :message="errors?.image_source" class="mt-1" />
         </div>
     </div>
 </template>

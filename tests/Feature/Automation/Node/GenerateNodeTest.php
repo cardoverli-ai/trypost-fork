@@ -7,10 +7,13 @@ use App\Ai\Agents\PostContentGenerator;
 use App\Ai\Agents\PostContentHumanizer;
 use App\Enums\Post\Status as PostStatus;
 use App\Enums\PostPlatform\ContentType;
+use App\Models\Automation;
 use App\Models\AutomationRun;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\SocialAccount;
 use App\Models\Workspace;
+use App\Services\Image\PostImagePipeline;
 
 it('creates a draft post and writes generated output to run context', function () {
     PostContentGenerator::fake([
@@ -132,4 +135,169 @@ it('derives single format when no carousel-capable account is configured', funct
 
     expect($format)->toBe('single');
     expect($slideCount)->toBe(1);
+});
+
+it('attaches a generated image to a single-format post', function () {
+    PostContentGenerator::fake([
+        ['content' => 'Single post', 'image_title' => 'Title', 'image_body' => 'Body', 'image_keywords' => ['kw']],
+    ]);
+
+    PostContentHumanizer::fake([
+        ['content' => 'Single post', 'image_title' => 'Title', 'image_body' => 'Body'],
+    ]);
+
+    $workspace = Workspace::factory()->create();
+    $account = SocialAccount::factory()->for($workspace)->create(['platform' => 'x']);
+
+    $mediaItem = ['id' => 1, 'path' => 'ai-images/x.webp', 'url' => 'http://x', 'type' => 'image', 'mime_type' => 'image/webp', 'source' => 'ai', 'source_meta' => []];
+
+    $pipeline = Mockery::mock(PostImagePipeline::class);
+    $pipeline->shouldReceive('forSingle')->once()->andReturn([$mediaItem]);
+    app()->instance(PostImagePipeline::class, $pipeline);
+
+    $automation = Automation::factory()->for($workspace)->create();
+    $run = AutomationRun::factory()->for($automation)->create([
+        'context' => ['trigger' => ['title' => 'test']],
+    ]);
+
+    $result = app(RunGenerateNode::class)($run, [
+        'accounts' => [
+            ['social_account_id' => (string) $account->id, 'content_type' => ContentType::XPost->value, 'meta' => []],
+        ],
+        'prompt_template' => 'Write about {{ trigger.title }}',
+        'include_image' => true,
+    ]);
+
+    expect($result->status->value)->toBe('completed');
+
+    $post = Post::find($result->output['generated']['post_id']);
+    expect($post)->not->toBeNull();
+    expect($post->media)->toHaveCount(1);
+});
+
+it('attaches one image per slide for carousel', function () {
+    PostContentGenerator::fake([
+        ['caption' => 'Carousel caption', 'slides' => [
+            ['title' => 'S1', 'body' => 'B1', 'image_keywords' => ['a']],
+            ['title' => 'S2', 'body' => 'B2', 'image_keywords' => ['b']],
+            ['title' => 'S3', 'body' => 'B3', 'image_keywords' => ['c']],
+        ]],
+    ]);
+
+    PostContentHumanizer::fake([
+        ['caption' => 'Carousel caption', 'slides' => [
+            ['title' => 'S1', 'body' => 'B1'],
+            ['title' => 'S2', 'body' => 'B2'],
+            ['title' => 'S3', 'body' => 'B3'],
+        ]],
+    ]);
+
+    $workspace = Workspace::factory()->create();
+    $account = SocialAccount::factory()->for($workspace)->create(['platform' => 'instagram']);
+
+    $item = fn (int $id) => ['id' => $id, 'path' => "ai-images/{$id}.webp", 'url' => "http://{$id}", 'type' => 'image', 'mime_type' => 'image/webp', 'source' => 'ai', 'source_meta' => []];
+
+    $pipeline = Mockery::mock(PostImagePipeline::class);
+    $pipeline->shouldReceive('forCarousel')->once()->andReturn([$item(1), $item(2), $item(3)]);
+    app()->instance(PostImagePipeline::class, $pipeline);
+
+    $automation = Automation::factory()->for($workspace)->create();
+    $run = AutomationRun::factory()->for($automation)->create([
+        'context' => ['trigger' => ['title' => 'test']],
+    ]);
+
+    $result = app(RunGenerateNode::class)($run, [
+        'accounts' => [
+            ['social_account_id' => (string) $account->id, 'content_type' => ContentType::InstagramFeed->value, 'meta' => []],
+        ],
+        'prompt_template' => 'Write about {{ trigger.title }}',
+        'target_slide_count' => 3,
+    ]);
+
+    expect($result->status->value)->toBe('completed');
+
+    $post = Post::find($result->output['generated']['post_id']);
+    expect($post)->not->toBeNull();
+    expect($post->media)->toHaveCount(3);
+});
+
+it('skips images when include_image is false', function () {
+    PostContentGenerator::fake([
+        ['content' => 'No image post', 'image_title' => 'Title', 'image_body' => 'Body', 'image_keywords' => ['kw']],
+    ]);
+
+    PostContentHumanizer::fake([
+        ['content' => 'No image post', 'image_title' => 'Title', 'image_body' => 'Body'],
+    ]);
+
+    $workspace = Workspace::factory()->create();
+    $account = SocialAccount::factory()->for($workspace)->create(['platform' => 'x']);
+
+    $pipeline = Mockery::mock(PostImagePipeline::class);
+    $pipeline->shouldNotReceive('forSingle');
+    $pipeline->shouldNotReceive('forCarousel');
+    app()->instance(PostImagePipeline::class, $pipeline);
+
+    $automation = Automation::factory()->for($workspace)->create();
+    $run = AutomationRun::factory()->for($automation)->create([
+        'context' => ['trigger' => ['title' => 'test']],
+    ]);
+
+    $result = app(RunGenerateNode::class)($run, [
+        'accounts' => [
+            ['social_account_id' => (string) $account->id, 'content_type' => ContentType::XPost->value, 'meta' => []],
+        ],
+        'prompt_template' => 'Write about {{ trigger.title }}',
+        'include_image' => false,
+    ]);
+
+    expect($result->status->value)->toBe('completed');
+
+    $post = Post::find($result->output['generated']['post_id']);
+    expect($post)->not->toBeNull();
+    expect($post->media)->toHaveCount(0);
+});
+
+it('does not generate images or persist on a dry run', function () {
+    PostContentGenerator::fake([
+        ['content' => 'Dry run post', 'image_title' => 'Title', 'image_body' => 'Body', 'image_keywords' => ['kw']],
+    ]);
+
+    PostContentHumanizer::fake([
+        ['content' => 'Dry run post', 'image_title' => 'Title', 'image_body' => 'Body'],
+    ]);
+
+    $workspace = Workspace::factory()->create();
+    $account = SocialAccount::factory()->for($workspace)->create(['platform' => 'x']);
+
+    $pipeline = Mockery::mock(PostImagePipeline::class);
+    $pipeline->shouldNotReceive('forSingle');
+    $pipeline->shouldNotReceive('forCarousel');
+    app()->instance(PostImagePipeline::class, $pipeline);
+
+    $automation = Automation::factory()->for($workspace)->create();
+    $run = AutomationRun::factory()->for($automation)->create([
+        'is_dry_run' => true,
+        'context' => ['trigger' => ['title' => 'test']],
+    ]);
+
+    $result = app(RunGenerateNode::class)($run, [
+        'accounts' => [
+            ['social_account_id' => (string) $account->id, 'content_type' => ContentType::XPost->value, 'meta' => []],
+        ],
+        'prompt_template' => 'Write about {{ trigger.title }}',
+        'include_image' => true,
+    ]);
+
+    expect($result->status->value)->toBe('completed');
+    expect($result->output['generated']['dry_run'])->toBeTrue();
+    expect($result->output['generated']['content'])->toBe('Dry run post');
+    expect($result->output['generated']['image_count'])->toBe(1);
+    expect($result->output['generated']['post_id'])->toBeNull();
+
+    expect(Post::count())->toBe(0);
+    expect(Media::count())->toBe(0);
+
+    $run->refresh();
+    expect($run->generated_post_id)->toBeNull();
 });

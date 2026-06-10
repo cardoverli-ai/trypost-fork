@@ -31,8 +31,11 @@ return [
         'node_input' => 'Input',
         'node_output' => 'Output',
         'node_error' => 'Error',
+        'no_new_items' => 'No new items — nothing downstream ran.',
         'error_starting' => 'Could not start the test run.',
         'with_real_data' => 'With real data',
+        'run' => 'Run test',
+        'idle_hint' => 'Hit Run test to execute the automation end-to-end.',
         'real_data_hint' => 'This test will publish posts, advance polling watermarks, and trigger external side effects.',
         'dry_badge' => 'Dry run',
     ],
@@ -90,10 +93,15 @@ return [
         'end_summary' => 'Stops the automation here',
         'fetch_rss' => 'Fetch RSS',
         'http_request' => 'HTTP Request',
+        'handles' => [
+            'items' => 'has items',
+            'no_items' => 'no items',
+        ],
     ],
 
     'config' => [
         'select_placeholder' => 'Select…',
+        'invalid_json' => 'This isn’t valid JSON yet.',
 
         'trigger' => [
             'type' => 'Trigger type',
@@ -146,14 +154,10 @@ return [
         'generate' => [
             'social_accounts' => 'Social accounts',
             'social_accounts_empty' => 'No connected social accounts. Connect one first.',
-            'target_slide_count' => 'Slides to generate (for carousel-capable platforms)',
+            'target_slide_count' => 'Slides to generate',
             'prompt_template' => 'Prompt template',
-            'image_source' => 'Image source',
-            'image_sources' => [
-                'ai' => 'AI generated',
-                'unsplash' => 'Unsplash',
-                'none' => 'No image',
-            ],
+            'include_image' => 'Include image',
+            'include_image_hint' => 'Generate an AI image for this post',
         ],
         'delay' => [
             'duration' => 'Duration',
@@ -216,6 +220,10 @@ return [
             'api_key_header' => 'Header name',
             'api_key_value' => 'API key',
             'body_template' => 'Body template (JSON)',
+            'headers' => 'Headers',
+            'header_name' => 'Header name',
+            'header_value' => 'Value',
+            'add_header' => 'Add header',
             'polling_section' => 'Polling (optional)',
             'polling_hint' => 'Leave blank to use the whole response as a single payload. Fill in to extract an array of items and spawn one run per item.',
             'items_path' => 'Items path',
@@ -244,6 +252,7 @@ return [
         'only_failed_can_retry' => 'Only failed runs can be retried.',
         'no_generated_post' => 'No generated post found on run.',
         'webhook_server_error' => 'Webhook server error.',
+        'webhook_invalid_payload_json' => 'The payload template is not valid JSON.',
         'node_no_longer_exists' => 'Node :node_id no longer exists in the automation.',
         'no_trigger_connection' => 'No node connected to the Trigger node.',
     ],

@@ -17,6 +17,7 @@ use App\DataTransferObjects\Automation\NodeRunResult;
 use App\Enums\Automation\Node\Type as NodeType;
 use App\Enums\Automation\NodeRun\Status as NodeRunStatus;
 use App\Enums\Automation\Run\Status as RunStatus;
+use App\Enums\Automation\Status as AutomationStatus;
 use App\Models\AutomationNodeRun;
 use App\Models\AutomationRun;
 use Illuminate\Bus\Queueable;
@@ -45,6 +46,10 @@ class ProcessAutomationNode implements ShouldQueue
         $this->run->refresh();
 
         if (! in_array($this->run->status, [RunStatus::Pending, RunStatus::Running, RunStatus::Waiting], true)) {
+            return;
+        }
+
+        if (! $this->run->is_manual && $this->run->automation->status !== AutomationStatus::Active) {
             return;
         }
 
@@ -114,6 +119,21 @@ class ProcessAutomationNode implements ShouldQueue
         }
 
         $advance($this->run, $this->nodeId, $result->nextHandle);
+    }
+
+    public function failed(?Throwable $e): void
+    {
+        $this->run->refresh();
+
+        if (in_array($this->run->status, [RunStatus::Completed, RunStatus::Failed], true)) {
+            return;
+        }
+
+        $this->run->update([
+            'status' => RunStatus::Failed,
+            'error' => ['message' => $e?->getMessage() ?? 'job failed', 'node_id' => $this->nodeId],
+            'finished_at' => now(),
+        ]);
     }
 
     private function executeNode(NodeType $type, array $config): NodeRunResult
