@@ -34,33 +34,7 @@ class LinkedInController extends SocialController
 
         $this->authorize('manageAccounts', $workspace);
 
-        return $this->redirectToProvider($request, $this->driver, $this->resolveScopes());
-    }
-
-    /**
-     * Merge the default LinkedIn scopes with any extra scopes the operator
-     * configured via `LINKEDIN_EXTRA_SCOPES` — comma-separated, e.g.
-     * `r_basicprofile`. Useful when the connected LinkedIn dev app has legacy
-     * or enterprise products not covered by the default Sign-In +
-     * Share-on-LinkedIn pair. Both live under
-     * `config/trypost.php` → `platforms.linkedin`.
-     *
-     * @return array<int, string>
-     */
-    protected function resolveScopes(): array
-    {
-        /** @var array<int, string> $scopes */
-        $scopes = config('trypost.platforms.linkedin.scopes', []);
-
-        $extra = (string) config('trypost.platforms.linkedin.extra_scopes', '');
-
-        if ($extra === '') {
-            return $scopes;
-        }
-
-        $extraScopes = array_filter(array_map('trim', explode(',', $extra)));
-
-        return array_values(array_unique([...$scopes, ...$extraScopes]));
+        return $this->redirectToProvider($request, $this->driver, config('trypost.platforms.linkedin.scopes'));
     }
 
     public function callback(Request $request): View

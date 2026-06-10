@@ -80,22 +80,23 @@ return [
             'api' => env('LINKEDIN_API', 'https://api.linkedin.com'),
             // OAuth host is different from the data API (api.linkedin.com).
             'oauth_api' => env('LINKEDIN_OAUTH_API', 'https://www.linkedin.com'),
-            // Default OAuth scopes requested on /connect/linkedin. Covers the
-            // two products auto-approved for new apps: Sign In with LinkedIn
-            // (openid, profile, email) + Share on LinkedIn (w_member_social).
-            // `r_basicprofile` is intentionally omitted — it's a 2018-deprecated
-            // legacy scope that new apps can't grant, and requesting it makes
-            // LinkedIn reject the whole authorize request.
-            'scopes' => ['openid', 'profile', 'email', 'w_member_social'],
-            // Comma-separated extra scopes merged onto the defaults above, for
-            // apps with legacy/enterprise products approved — e.g.
-            // `LINKEDIN_EXTRA_SCOPES=r_basicprofile` to re-enable the vanityName
-            // lookup via /v2/me.
-            'extra_scopes' => env('LINKEDIN_EXTRA_SCOPES'),
+            // Comma-separated OAuth scopes requested on /connect/linkedin.
+            // Default covers the two products auto-approved for new apps: Sign
+            // In with LinkedIn (openid, profile, email) + Share on LinkedIn
+            // (w_member_social). The 2018-deprecated `r_basicprofile` is
+            // intentionally absent — new apps can't grant it, and requesting it
+            // makes LinkedIn reject the whole authorize request. Override via
+            // LINKEDIN_SCOPES if your app has legacy/enterprise products
+            // approved (e.g. add `r_basicprofile` to re-enable the vanityName
+            // lookup via /v2/me).
+            'scopes' => array_values(array_filter(array_map('trim', explode(',', (string) env('LINKEDIN_SCOPES', 'openid,profile,email,w_member_social'))))),
         ],
         'linkedin-page' => [
             'enabled' => env('LINKEDIN_PAGE_ENABLED', true),
             'api' => env('LINKEDIN_PAGE_API', 'https://api.linkedin.com'),
+            // Comma-separated OAuth scopes requested on the LinkedIn Company
+            // Page connect flow. Override via LINKEDIN_PAGE_SCOPES.
+            'scopes' => array_values(array_filter(array_map('trim', explode(',', (string) env('LINKEDIN_PAGE_SCOPES', 'openid,profile,email,w_organization_social,r_organization_social,rw_organization_admin,w_member_social'))))),
         ],
         'x' => [
             'enabled' => env('X_ENABLED', true),

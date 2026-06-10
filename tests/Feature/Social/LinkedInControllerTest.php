@@ -71,22 +71,22 @@ $captureConnectScopes = function (object $test): array {
     return $captured;
 };
 
-test('linkedin connect requests the default scope set when LINKEDIN_EXTRA_SCOPES is unset', function () use ($captureConnectScopes) {
-    config(['trypost.platforms.linkedin.extra_scopes' => null]);
+test('linkedin connect requests the default scope set', function () use ($captureConnectScopes) {
+    config(['trypost.platforms.linkedin.scopes' => ['openid', 'profile', 'email', 'w_member_social']]);
 
     expect($captureConnectScopes($this))->toEqualCanonicalizing([
         'openid', 'profile', 'email', 'w_member_social',
     ]);
 });
 
-test('linkedin connect appends LINKEDIN_EXTRA_SCOPES to the default scope set', function () use ($captureConnectScopes) {
-    // Backward-compatibility: ops who have legacy products approved on
-    // their LinkedIn app (e.g. r_basicprofile) opt back in via env.
-    config(['trypost.platforms.linkedin.extra_scopes' => 'r_basicprofile, r_emailaddress']);
+test('linkedin connect requests the scopes configured via LINKEDIN_SCOPES', function () use ($captureConnectScopes) {
+    // Operators whose LinkedIn app has legacy/enterprise products approved
+    // override the default set via LINKEDIN_SCOPES (exploded into the config
+    // array), e.g. re-adding r_basicprofile to restore the vanityName lookup.
+    config(['trypost.platforms.linkedin.scopes' => ['openid', 'profile', 'email', 'w_member_social', 'r_basicprofile']]);
 
     expect($captureConnectScopes($this))->toEqualCanonicalizing([
-        'openid', 'profile', 'email', 'w_member_social',
-        'r_basicprofile', 'r_emailaddress',
+        'openid', 'profile', 'email', 'w_member_social', 'r_basicprofile',
     ]);
 });
 
