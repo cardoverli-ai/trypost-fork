@@ -9,7 +9,9 @@ use App\Mcp\Tools\Post\CreatePostTool;
 use App\Mcp\Tools\Post\DeletePostTool;
 use App\Mcp\Tools\Post\GetPostTool;
 use App\Mcp\Tools\Post\ListPostsTool;
+use App\Mcp\Tools\Post\UpdatePostTool;
 use App\Models\Post;
+use App\Models\PostPlatform;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
@@ -177,6 +179,38 @@ test('create post rejects a content_type not in the enum', function () {
     $response->assertHasErrors();
 });
 
+test('create post rejects instagram_carousel — carousel is not a stored content_type', function () {
+    $response = TryPostServer::actingAs($this->user)
+        ->tool(CreatePostTool::class, [
+            'platforms' => [
+                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'instagram_carousel'],
+            ],
+        ]);
+
+    $response->assertHasErrors();
+});
+
+test('update post rejects instagram_carousel — carousel is not a stored content_type', function () {
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+    $platform = PostPlatform::factory()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $this->socialAccount->id,
+    ]);
+
+    $response = TryPostServer::actingAs($this->user)
+        ->tool(UpdatePostTool::class, [
+            'post_id' => $post->id,
+            'platforms' => [
+                ['id' => $platform->id, 'content_type' => 'instagram_carousel'],
+            ],
+        ]);
+
+    $response->assertHasErrors();
+});
+
 test('create post rejects a content_type that does not match the social account platform', function () {
     // x_post on a LinkedIn account — ContentTypeMatchesPlatform should reject.
     $response = TryPostServer::actingAs($this->user)
@@ -241,4 +275,84 @@ test('delete post validates post_id required', function () {
         ->tool(DeletePostTool::class, []);
 
     $response->assertHasErrors();
+});
+
+test('create post persists platform meta (aspect_ratio)', function () {
+    $response = TryPostServer::actingAs($this->user)
+        ->tool(CreatePostTool::class, [
+            'platforms' => [
+                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['aspect_ratio' => '4:5']],
+            ],
+        ]);
+
+    $response->assertOk();
+
+    $platform = Post::where('workspace_id', $this->workspace->id)->first()
+        ->postPlatforms()->where('social_account_id', $this->socialAccount->id)->first();
+    expect($platform->meta['aspect_ratio'])->toBe('4:5');
+});
+
+test('create post rejects an invalid aspect_ratio', function () {
+    $response = TryPostServer::actingAs($this->user)
+        ->tool(CreatePostTool::class, [
+            'platforms' => [
+                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['aspect_ratio' => '3:2']],
+            ],
+        ]);
+
+    $response->assertHasErrors();
+});
+
+test('update post rejects an invalid aspect_ratio', function () {
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+    $platform = PostPlatform::factory()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $this->socialAccount->id,
+    ]);
+
+    $response = TryPostServer::actingAs($this->user)
+        ->tool(UpdatePostTool::class, [
+            'post_id' => $post->id,
+            'platforms' => [
+                ['id' => $platform->id, 'meta' => ['aspect_ratio' => '3:2']],
+            ],
+        ]);
+
+    $response->assertHasErrors();
+});
+
+test('create post returns the platform meta in the response (read-back)', function () {
+    TryPostServer::actingAs($this->user)
+        ->tool(CreatePostTool::class, [
+            'platforms' => [
+                ['social_account_id' => $this->socialAccount->id, 'content_type' => 'linkedin_post', 'meta' => ['aspect_ratio' => '4:5']],
+            ],
+        ])
+        ->assertOk()
+        ->assertStructuredContent(fn (AssertableJson $json) => $json->where('platforms.0.meta.aspect_ratio', '4:5')->etc());
+});
+
+test('update post accepts a valid aspect_ratio and persists it', function () {
+    $post = Post::factory()->create([
+        'workspace_id' => $this->workspace->id,
+        'user_id' => $this->user->id,
+    ]);
+    $platform = PostPlatform::factory()->create([
+        'post_id' => $post->id,
+        'social_account_id' => $this->socialAccount->id,
+    ]);
+
+    TryPostServer::actingAs($this->user)
+        ->tool(UpdatePostTool::class, [
+            'post_id' => $post->id,
+            'platforms' => [
+                ['id' => $platform->id, 'meta' => ['aspect_ratio' => '16:9']],
+            ],
+        ])
+        ->assertOk();
+
+    expect($platform->fresh()->meta['aspect_ratio'])->toBe('16:9');
 });

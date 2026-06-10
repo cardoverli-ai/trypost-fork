@@ -61,7 +61,7 @@ return [
             ],
             'posting_to' => 'Publicando en',
             'privacy_level' => '¿Quién puede ver este video?',
-            'privacy_placeholder' => 'Selecciona la visibilidad',
+            'privacy_placeholder' => 'Selecciona quién puede ver esta publicación',
             'privacy' => [
                 'public' => 'Público para todos',
                 'friends' => 'Amigos mutuos',
@@ -87,7 +87,7 @@ return [
             'compliance_incomplete' => 'Debes indicar si tu contenido promociona a ti mismo, a un tercero o a ambos.',
             'privacy_required' => 'La visibilidad de TikTok es obligatoria al publicar.',
             'branded_cleared_private' => 'La visibilidad se borró porque el contenido de marca no puede ser privado.',
-            'interaction_disabled_by_creator' => 'Desactivado por la configuración de tu cuenta TikTok.',
+            'interaction_disabled_by_creator' => 'Desactivado en la configuración de tu cuenta TikTok',
             'max_duration_exceeded' => 'El video dura :duration s pero esta cuenta solo permite videos de hasta :max s.',
             'processing_hint' => 'Después de publicar, puede tardar unos minutos en procesarse y aparecer en tu perfil de TikTok.',
             'brand_organic' => 'Tu marca',
@@ -126,6 +126,13 @@ return [
                 'post' => 'Publicación',
                 'reel' => 'Reel',
                 'story' => 'Historia',
+            ],
+            'aspect_label' => 'Proporción',
+            'aspect' => [
+                'square' => 'Cuadrado (1:1)',
+                'portrait' => 'Vertical (4:5)',
+                'landscape' => 'Horizontal (16:9)',
+                'original' => 'Original',
             ],
         ],
         'linkedin' => [
@@ -313,7 +320,7 @@ return [
 
         'tabs' => [
             'preview' => 'Vista previa',
-            'schedule' => 'Programación',
+            'channels' => 'Canales',
             'comments' => 'Comentarios',
             'comments_empty' => 'Todavía no hay comentarios.',
         ],

@@ -198,7 +198,7 @@ class RunGenerateNode
      * Derive the generator format and slide count from per-account content types.
      *
      * Carousel-capable content types:
-     *   - instagram_carousel   (Instagram feed carousel)
+     *   - instagram_feed       (Instagram feed carousel = multi-image feed post)
      *   - linkedin_carousel    (LinkedIn personal carousel PDF)
      *   - linkedin_page_carousel (LinkedIn page carousel PDF)
      *   - pinterest_carousel   (Pinterest carousel pin)
@@ -215,7 +215,7 @@ class RunGenerateNode
     public function deriveFormat(array $accountsConfig, array $config): array
     {
         $carouselCapable = [
-            ContentType::InstagramCarousel->value,
+            ContentType::InstagramFeed->value,
             ContentType::LinkedInCarousel->value,
             ContentType::LinkedInPageCarousel->value,
             ContentType::PinterestCarousel->value,

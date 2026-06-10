@@ -4,6 +4,7 @@ use App\Actions\Automation\Node\RunGenerateNode;
 use App\Ai\Agents\PostContentGenerator;
 use App\Ai\Agents\PostContentHumanizer;
 use App\Enums\Post\Status as PostStatus;
+use App\Enums\PostPlatform\ContentType;
 use App\Models\AutomationRun;
 use App\Models\Post;
 use App\Models\SocialAccount;
@@ -92,7 +93,7 @@ it('derives carousel format when a carousel-capable account is configured with t
     $action = app(RunGenerateNode::class);
 
     $accountsConfig = [
-        ['social_account_id' => (string) $account->id, 'content_type' => 'instagram_carousel', 'meta' => []],
+        ['social_account_id' => (string) $account->id, 'content_type' => ContentType::InstagramFeed->value, 'meta' => []],
     ];
 
     ['format' => $format, 'slide_count' => $slideCount] = $action->deriveFormat($accountsConfig, ['target_slide_count' => 5]);
@@ -108,7 +109,7 @@ it('derives single format when carousel account has target_slide_count of 1', fu
     $action = app(RunGenerateNode::class);
 
     $accountsConfig = [
-        ['social_account_id' => (string) $account->id, 'content_type' => 'instagram_carousel', 'meta' => []],
+        ['social_account_id' => (string) $account->id, 'content_type' => ContentType::InstagramFeed->value, 'meta' => []],
     ];
 
     ['format' => $format, 'slide_count' => $slideCount] = $action->deriveFormat($accountsConfig, ['target_slide_count' => 1]);
@@ -121,8 +122,8 @@ it('derives single format when no carousel-capable account is configured', funct
     $action = app(RunGenerateNode::class);
 
     $accountsConfig = [
-        ['social_account_id' => '1', 'content_type' => 'x_post', 'meta' => []],
-        ['social_account_id' => '2', 'content_type' => 'instagram_feed', 'meta' => []],
+        ['social_account_id' => '1', 'content_type' => ContentType::XPost->value, 'meta' => []],
+        ['social_account_id' => '2', 'content_type' => ContentType::InstagramReel->value, 'meta' => []],
     ];
 
     ['format' => $format, 'slide_count' => $slideCount] = $action->deriveFormat($accountsConfig, ['target_slide_count' => 5]);

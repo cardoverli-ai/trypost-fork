@@ -197,10 +197,10 @@ const getCreatorInfo = (account: SocialAccount): TikTokCreatorInfo | null =>
 const getBoards = (account: SocialAccount): PinterestBoard[] =>
     pinterestBoards.value[account.id] ?? [];
 
-// Carousel-capable content types: instagram_carousel, linkedin_carousel,
+// Carousel-capable content types: instagram_feed, linkedin_carousel,
 // linkedin_page_carousel, pinterest_carousel, tiktok_photo.
 const carouselCapableContentTypes = new Set([
-    ContentType.InstagramCarousel,
+    ContentType.InstagramFeed,
     ContentType.LinkedInCarousel,
     ContentType.LinkedInPageCarousel,
     ContentType.PinterestCarousel,
