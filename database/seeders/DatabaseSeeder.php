@@ -17,10 +17,5 @@ class DatabaseSeeder extends Seeder
             PlanSeeder::class,
             PassportSeeder::class
         ]);
-
-        // If self-hosted, seed the user seeder
-        if(config('trypost.self_hosted')) {
-            $this->call(UserSeeder::class);
-        }
     }
 }
