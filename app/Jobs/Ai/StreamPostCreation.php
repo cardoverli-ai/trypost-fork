@@ -139,7 +139,7 @@ class StreamPostCreation implements ShouldQueue
                     'image_body' => data_get($structured, 'image_body', ''),
                 ];
 
-            $humanizer = new PostContentHumanizer($workspace, $format);
+            $humanizer = new PostContentHumanizer($workspace, $format, platformContext: $this->format);
             $response = $humanizer->prompt(json_encode($input, JSON_UNESCAPED_UNICODE));
             $humanized = $response->structured ?? [];
 

@@ -5,6 +5,7 @@ import { computed, ref, watch } from 'vue';
 import ChannelConfigurator from '@/components/ChannelConfigurator.vue';
 import CodeEditor from '@/components/CodeEditor.vue';
 import InputError from '@/components/InputError.vue';
+import { useExpandedEditor } from '@/composables/useExpandedEditor';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -45,7 +46,8 @@ interface GenerateConfig {
     accounts: GenerateAccount[];
     target_slide_count: number;
     prompt_template: string;
-    include_image: boolean;
+    use_brand_voice: boolean;
+    use_brand_visuals: boolean;
 }
 
 const props = defineProps<{
@@ -53,6 +55,8 @@ const props = defineProps<{
     errors?: Record<string, string>;
 }>();
 const emit = defineEmits<{ update: [Record<string, unknown>] }>();
+
+const editorExpanded = useExpandedEditor();
 
 const page = usePage();
 
@@ -135,9 +139,10 @@ const normalizeAccountsFromData = (): GenerateAccount[] => {
 
 const local = ref<GenerateConfig>({
     accounts: normalizeAccountsFromData(),
-    target_slide_count: (props.data.target_slide_count as number | undefined) ?? 5,
+    target_slide_count: (props.data.target_slide_count as number | undefined) ?? 1,
     prompt_template: (props.data.prompt_template as string) ?? '',
-    include_image: (props.data.include_image as boolean | undefined) ?? true,
+    use_brand_voice: (props.data.use_brand_voice as boolean | undefined) ?? true,
+    use_brand_visuals: (props.data.use_brand_visuals as boolean | undefined) ?? true,
 });
 
 watch(local, (val) => emit('update', val), { deep: true });
@@ -191,34 +196,24 @@ const getBoards = (account: SocialAccount): PinterestBoard[] =>
 // at MAX_GENERATED_IMAGES regardless of how many a platform technically allows.
 const MAX_GENERATED_IMAGES = 10;
 
-const multiImageAccounts = computed(() =>
-    local.value.accounts.filter((a) => {
-        const rules = getMediaRulesForContentType(a.content_type);
-        return rules.acceptImages && rules.maxFiles > 1;
-    }),
+// Highest image count any selected account accepts (0 when none accept images,
+// e.g. text-only platforms), capped at MAX_GENERATED_IMAGES.
+const imageCountCap = computed(() =>
+    Math.min(
+        MAX_GENERATED_IMAGES,
+        local.value.accounts.reduce((max, a) => {
+            const rules = getMediaRulesForContentType(a.content_type);
+            return rules.acceptImages ? Math.max(max, rules.maxFiles) : max;
+        }, 0),
+    ),
 );
 
-const supportsMultiImage = computed(() => multiImageAccounts.value.length > 0);
-
-const imageCountCap = computed(() => {
-    if (!supportsMultiImage.value) return 1;
-    const maxAcrossAccounts = Math.max(
-        ...multiImageAccounts.value.map((a) => getMediaRulesForContentType(a.content_type).maxFiles),
-    );
-    return Math.min(MAX_GENERATED_IMAGES, maxAcrossAccounts);
-});
-
+// Single picker: 0 = no image (text-only), 1 = single image, 2+ = carousel.
 const imageCountOptions = computed(() =>
-    Array.from({ length: Math.max(0, imageCountCap.value - 1) }, (_, i) => i + 2),
+    Array.from({ length: imageCountCap.value + 1 }, (_, i) => i),
 );
 
-// How many images each selected account will receive — the carousel slide count
-// when any account supports multiple, otherwise a single image when enabled.
-const intendedImageCount = computed(() =>
-    supportsMultiImage.value
-        ? local.value.target_slide_count
-        : (local.value.include_image ? 1 : 0),
-);
+const intendedImageCount = computed(() => local.value.target_slide_count);
 
 const syntheticImages = (count: number): MediaItem[] =>
     Array.from({ length: Math.max(0, count) }, () => ({ type: 'image' }) as MediaItem);
@@ -235,14 +230,17 @@ const accountIssue = (accountId: string): string | null => {
     return account ? getPlatformMetaIssue(account.platform, entry.meta) : null;
 };
 
-watch(imageCountCap, (cap) => {
-    if (local.value.target_slide_count > cap) {
-        local.value.target_slide_count = cap;
-    }
-    if (local.value.target_slide_count < 2) {
-        local.value.target_slide_count = Math.min(2, cap);
-    }
-});
+// Clamp the chosen count to what the selected accounts actually allow — runs on
+// mount too so legacy/over-cap values (or text-only accounts → 0) self-correct.
+watch(
+    imageCountCap,
+    (cap) => {
+        if (local.value.target_slide_count > cap) {
+            local.value.target_slide_count = cap;
+        }
+    },
+    { immediate: true },
+);
 
 const channels = computed<Channel[]>(() =>
     socialAccounts.value.map((account) => {
@@ -284,8 +282,9 @@ const channels = computed<Channel[]>(() =>
             />
         </div>
 
-        <div v-if="supportsMultiImage" class="space-y-2">
-            <Label class="text-sm font-bold">{{ $t('automations.config.generate.target_slide_count') }}</Label>
+        <div v-if="imageCountCap >= 1" class="space-y-2">
+            <Label class="text-sm font-bold">{{ $t('automations.config.generate.image_count') }}</Label>
+            <p class="text-xs text-foreground/60">{{ $t('automations.config.generate.image_count_hint') }}</p>
             <div class="flex flex-wrap gap-2">
                 <Button
                     v-for="n in imageCountOptions"
@@ -300,15 +299,23 @@ const channels = computed<Channel[]>(() =>
             </div>
         </div>
 
-        <div v-else class="flex items-start justify-between gap-3">
+        <div v-show="!editorExpanded" class="flex items-start justify-between gap-3">
             <div class="space-y-0.5">
-                <Label class="text-sm font-bold">{{ $t('automations.config.generate.include_image') }}</Label>
-                <p class="text-xs text-foreground/60">{{ $t('automations.config.generate.include_image_hint') }}</p>
+                <Label class="text-sm font-bold">{{ $t('automations.config.generate.use_brand_voice') }}</Label>
+                <p class="text-xs text-foreground/60">{{ $t('automations.config.generate.use_brand_voice_hint') }}</p>
             </div>
-            <Switch v-model="local.include_image" />
+            <Switch v-model="local.use_brand_voice" />
         </div>
 
-        <div>
+        <div v-show="!editorExpanded && local.target_slide_count >= 1" class="flex items-start justify-between gap-3">
+            <div class="space-y-0.5">
+                <Label class="text-sm font-bold">{{ $t('automations.config.generate.use_brand_visuals') }}</Label>
+                <p class="text-xs text-foreground/60">{{ $t('automations.config.generate.use_brand_visuals_hint') }}</p>
+            </div>
+            <Switch v-model="local.use_brand_visuals" />
+        </div>
+
+        <div v-show="!editorExpanded">
             <label class="mb-1 block text-sm font-medium">{{ $t('automations.config.generate.prompt_template') }}</label>
             <div class="h-40">
                 <CodeEditor

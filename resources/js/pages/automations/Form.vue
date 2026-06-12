@@ -268,7 +268,7 @@ const defaultConfigFor = (type: string): Record<string, unknown> => {
             schedule_minute: 0,
             schedule_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         };
-        case NodeType.Generate: return { accounts: [], prompt_template: '', include_image: true, target_slide_count: 5 };
+        case NodeType.Generate: return { accounts: [], prompt_template: '', target_slide_count: 1 };
         case NodeType.Delay: return { duration: 1, unit: 'hours' };
         case NodeType.Condition: return { field: '', operator: 'contains', value: '' };
         case NodeType.Publish: return { mode: 'now', scheduled_offset: 60 };

@@ -54,10 +54,19 @@ class RunGenerateNode
             ]);
         }
 
+        // Per-automation toggle: when off, the brand persona/voice is NOT
+        // injected, so the post stays faithful to a third-party source (news /
+        // RSS curation) instead of being rewritten in the brand's voice.
+        $applyBrandVoice = (bool) data_get($config, 'use_brand_voice', true);
+
+        $platformContext = $this->resolvePlatformContext($accountsConfig);
+
         $agent = new PostContentGenerator(
             workspace: $workspace,
             format: $format,
             slideCount: $slideCount,
+            platformContext: $platformContext,
+            applyBrandVoice: $applyBrandVoice,
         );
 
         $generatorResponse = $agent->prompt($prompt);
@@ -73,7 +82,7 @@ class RunGenerateNode
 
         $structured = $generatorResponse->structured ?? [];
 
-        $structured = $this->humanize($workspace, $structured, $format);
+        $structured = $this->humanize($workspace, $structured, $format, $applyBrandVoice, $platformContext);
 
         $content = $format === 'carousel'
             ? (string) data_get($structured, 'caption', '')
@@ -102,7 +111,10 @@ class RunGenerateNode
             ];
         }
 
-        $includeImage = (bool) data_get($config, 'include_image', true);
+        // A single source of truth for image count: 0 = text-only (no image),
+        // 1 = single image, 2+ = carousel. For the single-image branch we only
+        // care whether at least one image was requested.
+        $wantsImage = (int) data_get($config, 'target_slide_count', 1) >= 1;
 
         $brandAccount = $platforms !== []
             ? $activeAccounts->get(data_get($platforms[0], 'social_account_id'))
@@ -112,7 +124,7 @@ class RunGenerateNode
             ? ContentType::tryFrom((string) data_get($platforms[0], 'content_type'))
             : null;
 
-        $imageCount = $this->intendedImageCount($format, $slideCount, $includeImage, $structured, $brandAccount);
+        $imageCount = $this->intendedImageCount($format, $slideCount, $wantsImage, $structured, $brandAccount);
 
         // Dry runs do the AI work (so the user sees a real generation) but
         // never persist a Post. Downstream nodes (Publish) read `is_dry_run`
@@ -130,11 +142,13 @@ class RunGenerateNode
 
         $media = [];
 
+        $applyBrandVisuals = (bool) data_get($config, 'use_brand_visuals', true);
+
         if ($brandAccount) {
             if ($format === 'carousel') {
-                $media = app(PostImagePipeline::class)->forCarousel($workspace, $brandAccount, $structured, $contentType);
-            } elseif ($includeImage) {
-                $media = app(PostImagePipeline::class)->forSingle($workspace, $brandAccount, $structured, $contentType);
+                $media = app(PostImagePipeline::class)->forCarousel($workspace, $brandAccount, $structured, $contentType, $applyBrandVisuals);
+            } elseif ($wantsImage) {
+                $media = app(PostImagePipeline::class)->forSingle($workspace, $brandAccount, $structured, $contentType, $applyBrandVisuals);
             }
         }
 
@@ -159,7 +173,7 @@ class RunGenerateNode
      * @param  array<string, mixed>  $structured
      * @return array<string, mixed>
      */
-    private function humanize(Workspace $workspace, array $structured, string $format): array
+    private function humanize(Workspace $workspace, array $structured, string $format, bool $applyBrandVoice = true, ?string $platformContext = null): array
     {
         try {
             $input = $format === 'carousel'
@@ -179,7 +193,7 @@ class RunGenerateNode
                     'image_body' => data_get($structured, 'image_body', ''),
                 ];
 
-            $humanizer = new PostContentHumanizer($workspace, $format);
+            $humanizer = new PostContentHumanizer($workspace, $format, platformContext: $platformContext, applyBrandVoice: $applyBrandVoice);
             $response = $humanizer->prompt(json_encode($input, JSON_UNESCAPED_UNICODE));
             $humanized = $response->structured ?? [];
 
@@ -264,13 +278,32 @@ class RunGenerateNode
     }
 
     /**
+     * Pick the content type the generator should write for so the copy fits
+     * every selected network. A Generate node can target one or many accounts,
+     * each with its own content type, so we feed the generator the MOST
+     * RESTRICTIVE platform (smallest character cap) — content that fits X (280)
+     * also fits LinkedIn (3000). Returns null when no account carries a known
+     * content type, leaving the generator platform-agnostic.
+     *
+     * @param  array<int, array{social_account_id: string, content_type: ?string, meta: array<string, mixed>}>  $accountsConfig
+     */
+    private function resolvePlatformContext(array $accountsConfig): ?string
+    {
+        return collect($accountsConfig)
+            ->map(fn ($entry) => ContentType::tryFrom((string) data_get($entry, 'content_type')))
+            ->filter()
+            ->sortBy(fn (ContentType $contentType) => $contentType->platform()->maxContentLength())
+            ->first()?->value;
+    }
+
+    /**
      * Number of images that would be attached for the resolved format. Used as
      * the dry-run indicator and mirrors the non-dry image generation branches:
      * one per slide for carousels, one for single posts when images are enabled.
      *
      * @param  array<string, mixed>  $structured
      */
-    private function intendedImageCount(string $format, int $slideCount, bool $includeImage, array $structured, ?SocialAccount $brandAccount): int
+    private function intendedImageCount(string $format, int $slideCount, bool $wantsImage, array $structured, ?SocialAccount $brandAccount): int
     {
         if (! $brandAccount) {
             return 0;
@@ -282,7 +315,7 @@ class RunGenerateNode
             return is_array($slides) ? count($slides) : $slideCount;
         }
 
-        return $includeImage ? 1 : 0;
+        return $wantsImage ? 1 : 0;
     }
 
     private function resolveUser(AutomationRun $run): User

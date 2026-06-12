@@ -32,7 +32,8 @@ final class GenerateNodeValidator
             return null;
         }
 
-        $imageCount = $this->intendedImageCount($config, $accounts);
+        // Single source of truth: 0 = text-only, 1 = single image, 2+ = carousel.
+        $imageCount = (int) data_get($config, 'target_slide_count', 1);
 
         foreach ($accounts as $entry) {
             $contentType = ContentType::tryFrom((string) data_get($entry, 'content_type'));
@@ -49,26 +50,6 @@ final class GenerateNodeValidator
         }
 
         return null;
-    }
-
-    /**
-     * Mirrors the frontend: the carousel slide count when any selected account
-     * supports multiple images, otherwise a single image when enabled.
-     *
-     * @param  array<string, mixed>  $config
-     * @param  array<int, mixed>  $accounts
-     */
-    private function intendedImageCount(array $config, array $accounts): int
-    {
-        foreach ($accounts as $entry) {
-            $contentType = ContentType::tryFrom((string) data_get($entry, 'content_type'));
-
-            if ($contentType instanceof ContentType && $contentType->supportsImage() && $contentType->maxMediaCount() > 1) {
-                return (int) data_get($config, 'target_slide_count', 2);
-            }
-        }
-
-        return (bool) data_get($config, 'include_image', true) ? 1 : 0;
     }
 
     private function issueForAccount(ContentType $contentType, int $imageCount): ?string

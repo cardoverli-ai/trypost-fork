@@ -60,6 +60,73 @@ it('updates nodes and connections via PUT', function () {
     expect($automation->fresh()->nodes)->toHaveCount(3);
 });
 
+it('persists every trigger schedule editor field through a save round-trip', function (array $scheduleData) {
+    $automation = Automation::factory()->for($this->workspace)->create();
+
+    $this->actingAs($this->user)
+        ->put(route('app.automations.update', $automation->id), [
+            'nodes' => [
+                ['id' => 'n1', 'type' => 'trigger', 'position' => ['x' => 0, 'y' => 0], 'data' => array_merge([
+                    'trigger_type' => 'schedule',
+                    'cron' => '0 9 * * *',
+                ], $scheduleData)],
+            ],
+            'connections' => [],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $trigger = collect($automation->fresh()->nodes)->firstWhere('id', 'n1');
+
+    foreach ($scheduleData as $key => $value) {
+        expect($trigger['data'][$key])->toBe($value);
+    }
+})->with([
+    'minutes interval' => [['schedule_field' => 'minutes', 'schedule_minutes_interval' => 15]],
+    'hours interval' => [['schedule_field' => 'hours', 'schedule_hours_interval' => 6, 'schedule_minute' => 30]],
+    'daily at time' => [['schedule_field' => 'days', 'schedule_days_interval' => 2, 'schedule_hour' => 8, 'schedule_minute' => 45]],
+    'weekly on weekdays' => [['schedule_field' => 'weeks', 'schedule_weekdays' => [1, 3, 5], 'schedule_hour' => 14, 'schedule_minute' => 0]],
+    'monthly on day-of-month' => [['schedule_field' => 'months', 'schedule_day_of_month' => 15, 'schedule_hour' => 9, 'schedule_minute' => 0]],
+    'custom cron' => [['schedule_field' => 'custom', 'schedule_custom_cron' => '0 9 * * 1,3,5']],
+    'timezone' => [['schedule_timezone' => 'America/Sao_Paulo']],
+    'all fields together' => [[
+        'schedule_field' => 'weeks',
+        'schedule_minutes_interval' => 5,
+        'schedule_hours_interval' => 3,
+        'schedule_days_interval' => 1,
+        'schedule_hour' => 14,
+        'schedule_minute' => 30,
+        'schedule_weekdays' => [0, 6],
+        'schedule_day_of_month' => 28,
+        'schedule_custom_cron' => '*/5 * * * *',
+        'schedule_timezone' => 'Europe/Lisbon',
+    ]],
+]);
+
+it('rejects a trigger node with an out-of-range or invalid schedule field', function (array $scheduleData, string $invalidKey) {
+    $automation = Automation::factory()->for($this->workspace)->create();
+
+    $this->actingAs($this->user)
+        ->putJson(route('app.automations.update', $automation->id), [
+            'nodes' => [
+                ['id' => 'n1', 'type' => 'trigger', 'position' => ['x' => 0, 'y' => 0], 'data' => array_merge([
+                    'trigger_type' => 'schedule',
+                    'cron' => '0 9 * * *',
+                ], $scheduleData)],
+            ],
+            'connections' => [],
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors(["nodes.0.data.{$invalidKey}"]);
+})->with([
+    'bad schedule_field' => [['schedule_field' => 'fortnightly'], 'schedule_field'],
+    'hour over 23' => [['schedule_field' => 'days', 'schedule_hour' => 24], 'schedule_hour'],
+    'minute over 59' => [['schedule_field' => 'days', 'schedule_minute' => 60], 'schedule_minute'],
+    'weekday over 6' => [['schedule_field' => 'weeks', 'schedule_weekdays' => [7]], 'schedule_weekdays.0'],
+    'day-of-month over 31' => [['schedule_field' => 'months', 'schedule_day_of_month' => 32], 'schedule_day_of_month'],
+    'invalid timezone' => [['schedule_timezone' => 'Mars/Phobos'], 'schedule_timezone'],
+]);
+
 it('rejects update with cycle', function () {
     $automation = Automation::factory()->for($this->workspace)->create();
 

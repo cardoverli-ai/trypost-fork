@@ -121,6 +121,17 @@ class UpdateAutomationRequest extends FormRequest
             NodeType::Trigger->value => [
                 'trigger_type' => ['required', Rule::in(array_column(TriggerType::cases(), 'value'))],
                 'cron' => ['required_if:nodes.*.data.trigger_type,'.TriggerType::Schedule->value, 'string'],
+                'schedule_field' => ['sometimes', Rule::in(['minutes', 'hours', 'days', 'weeks', 'months', 'custom'])],
+                'schedule_minutes_interval' => ['sometimes', 'integer', 'min:1', 'max:59'],
+                'schedule_hours_interval' => ['sometimes', 'integer', 'min:1', 'max:23'],
+                'schedule_days_interval' => ['sometimes', 'integer', 'min:1', 'max:31'],
+                'schedule_hour' => ['sometimes', 'integer', 'min:0', 'max:23'],
+                'schedule_minute' => ['sometimes', 'integer', 'min:0', 'max:59'],
+                'schedule_weekdays' => ['sometimes', 'array'],
+                'schedule_weekdays.*' => ['integer', 'min:0', 'max:6'],
+                'schedule_day_of_month' => ['sometimes', 'integer', 'min:1', 'max:31'],
+                'schedule_custom_cron' => ['sometimes', 'nullable', 'string'],
+                'schedule_timezone' => ['sometimes', 'string', 'timezone'],
             ],
             NodeType::FetchRss->value => [
                 'feed_url' => ['required', 'url'],
@@ -143,7 +154,9 @@ class UpdateAutomationRequest extends FormRequest
             NodeType::Generate->value => [
                 'accounts' => ['required', 'array', 'min:1'],
                 'prompt_template' => ['required', 'string'],
-                'target_slide_count' => ['nullable', 'integer', 'min:1', 'max:'.GenerateNodeValidator::MAX_GENERATED_IMAGES],
+                'target_slide_count' => ['nullable', 'integer', 'min:0', 'max:'.GenerateNodeValidator::MAX_GENERATED_IMAGES],
+                'use_brand_voice' => ['sometimes', 'boolean'],
+                'use_brand_visuals' => ['sometimes', 'boolean'],
             ],
             NodeType::Delay->value => [
                 'duration' => ['required', 'integer', 'min:1'],

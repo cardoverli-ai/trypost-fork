@@ -25,7 +25,7 @@ class PostImagePipeline
      * @param  array<string, mixed>  $structured
      * @return array<int, array<string, mixed>>
      */
-    public function forSingle(Workspace $workspace, SocialAccount $account, array $structured, ?ContentType $contentType): array
+    public function forSingle(Workspace $workspace, SocialAccount $account, array $structured, ?ContentType $contentType, bool $applyBrandVisuals = true): array
     {
         ['width' => $width, 'height' => $height] = $this->dimensionsForContentType($contentType);
 
@@ -37,6 +37,7 @@ class PostImagePipeline
             imageKeywords: data_get($structured, 'image_keywords', []),
             width: $width,
             height: $height,
+            applyBrandVisuals: $applyBrandVisuals,
         );
 
         if (! $rendered) {
@@ -53,7 +54,7 @@ class PostImagePipeline
      * @param  array<string, mixed>  $structured
      * @return array<int, array<string, mixed>>
      */
-    public function forCarousel(Workspace $workspace, SocialAccount $account, array $structured, ?ContentType $contentType): array
+    public function forCarousel(Workspace $workspace, SocialAccount $account, array $structured, ?ContentType $contentType, bool $applyBrandVisuals = true): array
     {
         ['width' => $width, 'height' => $height] = $this->dimensionsForContentType($contentType);
 
@@ -68,6 +69,7 @@ class PostImagePipeline
                 imageKeywords: data_get($slide, 'image_keywords', []),
                 width: $width,
                 height: $height,
+                applyBrandVisuals: $applyBrandVisuals,
             );
 
             if ($rendered) {

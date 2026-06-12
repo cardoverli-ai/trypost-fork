@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue';
 import CodeEditor from '@/components/CodeEditor.vue';
 import InputError from '@/components/InputError.vue';
 import { Input } from '@/components/ui/input';
+import { useExpandedEditor } from '@/composables/useExpandedEditor';
 import {
     Select,
     SelectContent,
@@ -24,6 +25,8 @@ const props = defineProps<{
     errors?: Record<string, string>;
 }>();
 const emit = defineEmits<{ update: [Record<string, unknown>] }>();
+
+const editorExpanded = useExpandedEditor();
 
 const local = ref<WebhookConfig>({
     url: (props.data.url as string) ?? '',
@@ -73,7 +76,7 @@ const isPayloadJsonInvalid = computed(() => {
             <InputError :message="errors?.method" class="mt-1" />
         </div>
 
-        <div>
+        <div v-show="!editorExpanded">
             <label class="mb-1 block text-sm font-medium">{{ $t('automations.config.webhook.payload_template') }}</label>
             <div class="h-40">
                 <CodeEditor

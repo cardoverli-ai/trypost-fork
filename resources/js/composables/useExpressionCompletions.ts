@@ -128,6 +128,26 @@ export const buildExpressionCatalog = (
 };
 
 /**
+ * Whether a `{{ path }}` references something the node can actually resolve.
+ * Lenient on purpose: a path is known if it matches a catalog entry, is a
+ * parent of one, or is a child of one (e.g. HTTP `fetched.*` is arbitrary, so
+ * `fetched` in the catalog makes any `fetched.x.y` valid). When the catalog is
+ * empty (no upstream context yet) nothing is flagged.
+ */
+export const isKnownExpression = (path: string, suggestions: ExpressionSuggestion[]): boolean => {
+    if (suggestions.length === 0) {
+        return true;
+    }
+
+    return suggestions.some(
+        (item) =>
+            path === item.label ||
+            path.startsWith(`${item.label}.`) ||
+            item.label.startsWith(`${path}.`),
+    );
+};
+
+/**
  * CodeMirror completion source that only fires inside a `{{ ... }}` block —
  * matching how n8n scopes completions to its `Resolvable` syntax node. The typed
  * path is replaced with the chosen expression, closing the braces if needed.

@@ -58,6 +58,31 @@ it('allows saving a generate node within the content type limit', function () {
     expect($automation->fresh()->nodes)->toHaveCount(2);
 });
 
+it('persists the brand toggles on the generate node', function () {
+    $automation = Automation::factory()->for($this->workspace)->create();
+
+    $this->actingAs($this->user)
+        ->put(route('app.automations.update', $automation->id), [
+            'nodes' => [
+                ['id' => 'n1', 'type' => 'trigger', 'position' => ['x' => 0, 'y' => 0], 'data' => ['trigger_type' => 'schedule', 'cron' => '0 9 * * *']],
+                ['id' => 'n2', 'type' => 'generate', 'position' => ['x' => 1, 'y' => 0], 'data' => [
+                    'accounts' => [['social_account_id' => 'acc-1', 'content_type' => 'pinterest_carousel']],
+                    'prompt_template' => 'hi',
+                    'target_slide_count' => 4,
+                    'use_brand_voice' => false,
+                    'use_brand_visuals' => false,
+                ]],
+            ],
+            'connections' => [['id' => 'e1', 'source' => 'n1', 'target' => 'n2']],
+        ])
+        ->assertRedirect();
+
+    $generate = collect($automation->fresh()->nodes)->firstWhere('id', 'n2');
+    expect($generate['data']['target_slide_count'])->toBe(4);
+    expect($generate['data']['use_brand_voice'])->toBeFalse();
+    expect($generate['data']['use_brand_visuals'])->toBeFalse();
+});
+
 it('saves a generate node using the exact frontend payload (no image_source field)', function () {
     $automation = Automation::factory()->for($this->workspace)->create();
 
@@ -68,7 +93,6 @@ it('saves a generate node using the exact frontend payload (no image_source fiel
                 ['id' => 'n2', 'type' => 'generate', 'position' => ['x' => 1, 'y' => 0], 'data' => [
                     'accounts' => [['social_account_id' => 'acc-1', 'content_type' => 'instagram_feed', 'meta' => []]],
                     'prompt_template' => 'hi',
-                    'include_image' => true,
                     'target_slide_count' => 5,
                 ]],
             ],
@@ -86,7 +110,7 @@ it('refuses to activate an automation whose generate node requests images for an
         'nodes' => array_merge($automation->nodes, [
             ['id' => 'n2', 'type' => 'generate', 'position' => ['x' => 1, 'y' => 1], 'data' => [
                 'accounts' => [['social_account_id' => 'acc-1', 'content_type' => 'tiktok_video']],
-                'include_image' => true,
+                'target_slide_count' => 1,
             ]],
         ]),
         'connections' => [['id' => 'e1', 'source' => 'trigger_1', 'target' => 'n2']],

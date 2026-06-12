@@ -162,7 +162,6 @@ return [
         'invalid_json' => 'Isto ainda não é um JSON válido.',
         'expand_editor' => 'Expandir editor',
         'minimize_editor' => 'Minimizar',
-        'editing_in_panel' => 'Editando no painel ao lado',
 
         'trigger' => [
             'type' => 'Tipo de trigger',
@@ -218,8 +217,12 @@ return [
             'target_slide_count' => 'Slides a gerar',
             'prompt_template' => 'Template do prompt',
             'prompt_template_hint' => 'Digite {{ para inserir dados das etapas anteriores.',
-            'include_image' => 'Incluir imagem',
-            'include_image_hint' => 'Gerar uma imagem com IA para esta publicação',
+            'image_count' => 'Imagens a gerar',
+            'image_count_hint' => '0 = post só texto (sem imagem). 1 = imagem única. 2+ = carrossel.',
+            'use_brand_voice' => 'Usar voz da marca',
+            'use_brand_voice_hint' => 'Aplica a descrição e a voz da sua marca. Desligue para curadoria fiel de fontes de terceiros (notícias, RSS).',
+            'use_brand_visuals' => 'Usar visual da marca',
+            'use_brand_visuals_hint' => 'Guia as imagens de IA com as cores e identidade da sua marca. Desligue para imagens neutras, guiadas só pelo tema do post.',
         ],
         'delay' => [
             'duration' => 'Duração',

@@ -14,6 +14,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useExpandedEditor } from '@/composables/useExpandedEditor';
 
 type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 type AuthType = 'none' | 'bearer' | 'basic' | 'api_key';
@@ -90,6 +91,8 @@ const removeHeader = (index: number): void => {
 };
 
 watch(local, (val) => emit('update', val), { deep: true });
+
+const editorExpanded = useExpandedEditor();
 
 const supportsBody = computed(() => ['POST', 'PUT', 'PATCH'].includes(local.value.method));
 
@@ -179,7 +182,7 @@ const isBodyJsonInvalid = computed(() => {
             </div>
         </template>
 
-        <div v-if="supportsBody">
+        <div v-if="supportsBody" v-show="!editorExpanded">
             <label class="mb-1 block text-sm font-medium">{{ $t('automations.config.http_request.body_template') }}</label>
             <div class="h-36">
                 <CodeEditor

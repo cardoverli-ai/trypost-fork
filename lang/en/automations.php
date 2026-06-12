@@ -162,7 +162,6 @@ return [
         'invalid_json' => 'This isn’t valid JSON yet.',
         'expand_editor' => 'Expand editor',
         'minimize_editor' => 'Minimize',
-        'editing_in_panel' => 'Editing in the side panel',
 
         'trigger' => [
             'type' => 'Trigger type',
@@ -218,8 +217,12 @@ return [
             'target_slide_count' => 'Slides to generate',
             'prompt_template' => 'Prompt template',
             'prompt_template_hint' => 'Type {{ to insert data from earlier steps.',
-            'include_image' => 'Include image',
-            'include_image_hint' => 'Generate an AI image for this post',
+            'image_count' => 'Images to generate',
+            'image_count_hint' => '0 = text-only post (no image). 1 = single image. 2+ = carousel.',
+            'use_brand_voice' => 'Use brand voice',
+            'use_brand_voice_hint' => 'Apply your brand description and voice. Turn off for faithful curation of third-party sources (news, RSS).',
+            'use_brand_visuals' => 'Use brand visuals',
+            'use_brand_visuals_hint' => 'Steer AI images with your brand colors and identity. Turn off for neutral imagery driven only by the post topic.',
         ],
         'delay' => [
             'duration' => 'Duration',

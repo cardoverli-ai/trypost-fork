@@ -3,7 +3,16 @@ import { autocompletion } from '@codemirror/autocomplete';
 import { indentWithTab } from '@codemirror/commands';
 import { json } from '@codemirror/lang-json';
 import { type Extension, EditorState } from '@codemirror/state';
-import { EditorView, keymap, placeholder as placeholderExt } from '@codemirror/view';
+import {
+    Decoration,
+    type DecorationSet,
+    EditorView,
+    keymap,
+    MatchDecorator,
+    placeholder as placeholderExt,
+    ViewPlugin,
+    type ViewUpdate,
+} from '@codemirror/view';
 import { IconArrowsMaximize, IconArrowsMinimize, IconCopy } from '@tabler/icons-vue';
 import { basicSetup } from 'codemirror';
 import { computed, inject, onBeforeUnmount, onMounted, type Ref, ref, watch } from 'vue';
@@ -18,6 +27,7 @@ import {
 import {
     type ExpressionSuggestion,
     expressionCompletionSource,
+    isKnownExpression,
 } from '@/composables/useExpressionCompletions';
 import debounce from '@/debounce';
 import { copyToClipboard } from '@/lib/utils';
@@ -71,6 +81,44 @@ const onKeydown = (event: KeyboardEvent): void => {
         isExpanded.value = false;
     }
 };
+
+// Paints `{{ ... }}` expressions as pills — primary-tinted when the path is
+// resolvable for this node, amber/wavy when it isn't — so they read as
+// variables and a wrong reference is obvious. Styles are inline on the mark so
+// they win over the editor theme and JSON string-token colors.
+const KNOWN_EXPR_STYLE =
+    'background-color:color-mix(in srgb,var(--primary) 16%,transparent);color:var(--primary);border-radius:4px;padding:1px 3px;font-weight:600;';
+const UNKNOWN_EXPR_STYLE =
+    'background-color:color-mix(in srgb,#f59e0b 18%,transparent);color:#b45309;border-radius:4px;padding:1px 3px;font-weight:600;text-decoration:underline wavy #f59e0b;';
+
+const expressionHighlighter = (() => {
+    const matcher = new MatchDecorator({
+        regexp: /\{\{\s*([\w.]+)\s*\}\}/g,
+        decoration: (match) =>
+            Decoration.mark({
+                attributes: {
+                    style: isKnownExpression(match[1], expressionCompletions.value)
+                        ? KNOWN_EXPR_STYLE
+                        : UNKNOWN_EXPR_STYLE,
+                },
+            }),
+    });
+
+    return ViewPlugin.fromClass(
+        class {
+            decorations: DecorationSet;
+
+            constructor(view: EditorView) {
+                this.decorations = matcher.createDeco(view);
+            }
+
+            update(update: ViewUpdate) {
+                this.decorations = matcher.updateDeco(update, this.decorations);
+            }
+        },
+        { decorations: (plugin) => plugin.decorations },
+    );
+})();
 
 const editorContainer = ref<HTMLElement>();
 let view: EditorView | null = null;
@@ -157,6 +205,7 @@ onMounted(() => {
             activateOnTyping: true,
             icons: false,
         }),
+        expressionHighlighter,
         lightTheme,
         updateListener,
     ];
@@ -219,19 +268,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div class="group relative h-full w-full">
-        <div v-show="!isExpanded" ref="editorContainer" class="code-editor h-full w-full" />
-
-        <!-- While the side panel is open, the inline field collapses to a hint
-             (clicking it closes the panel) instead of duplicating the editor. -->
-        <button
-            v-if="isExpanded"
-            type="button"
-            class="flex h-full w-full flex-col items-center justify-center gap-1.5 rounded-md border-2 border-dashed border-foreground/25 bg-card/40 px-3 text-center text-xs font-medium text-foreground/60 transition hover:border-foreground/40 hover:text-foreground/80"
-            @click="isExpanded = false"
-        >
-            <IconArrowsMaximize class="size-4" stroke-width="2.5" />
-            {{ $t('automations.config.editing_in_panel') }}
-        </button>
+        <div ref="editorContainer" class="code-editor h-full w-full" />
 
         <TooltipProvider :delay-duration="200">
             <div

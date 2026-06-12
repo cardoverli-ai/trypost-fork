@@ -47,6 +47,162 @@ it('creates a draft post and writes generated output to run context', function (
     expect($post->status)->toBe(PostStatus::Draft);
 });
 
+it('applies brand voice by default', function () {
+    PostContentGenerator::fake([
+        ['content' => 'c', 'image_title' => 't', 'image_body' => 'b', 'image_keywords' => ['k']],
+    ]);
+    PostContentHumanizer::fake([['content' => 'c', 'image_title' => 't', 'image_body' => 'b']]);
+
+    $run = AutomationRun::factory()->create(['context' => ['trigger' => ['title' => 'News']]]);
+
+    app(RunGenerateNode::class)($run, [
+        'accounts' => [],
+        'prompt_template' => 'Write about {{ trigger.title }}',
+    ]);
+
+    PostContentGenerator::assertPrompted(fn ($prompt) => $prompt->agent->applyBrandVoice === true);
+    PostContentHumanizer::assertPrompted(fn ($prompt) => $prompt->agent->applyBrandVoice === true);
+});
+
+it('skips brand voice when use_brand_voice is off', function () {
+    PostContentGenerator::fake([
+        ['content' => 'c', 'image_title' => 't', 'image_body' => 'b', 'image_keywords' => ['k']],
+    ]);
+    PostContentHumanizer::fake([['content' => 'c', 'image_title' => 't', 'image_body' => 'b']]);
+
+    $run = AutomationRun::factory()->create(['context' => ['trigger' => ['title' => 'OpenAI news']]]);
+
+    app(RunGenerateNode::class)($run, [
+        'accounts' => [],
+        'prompt_template' => 'Write about {{ trigger.title }}',
+        'use_brand_voice' => false,
+    ]);
+
+    PostContentGenerator::assertPrompted(fn ($prompt) => $prompt->agent->applyBrandVoice === false);
+    PostContentHumanizer::assertPrompted(fn ($prompt) => $prompt->agent->applyBrandVoice === false);
+});
+
+it('passes the selected network as the generator platform context', function () {
+    PostContentGenerator::fake([
+        ['content' => 'c', 'image_title' => 't', 'image_body' => 'b', 'image_keywords' => ['k']],
+    ]);
+    PostContentHumanizer::fake([['content' => 'c', 'image_title' => 't', 'image_body' => 'b']]);
+
+    $workspace = Workspace::factory()->create();
+    $account = SocialAccount::factory()->for($workspace)->create(['platform' => 'linkedin']);
+    $run = AutomationRun::factory()->for(Automation::factory()->for($workspace))->create([
+        'context' => ['trigger' => ['title' => 'News']],
+    ]);
+
+    app(RunGenerateNode::class)($run, [
+        'accounts' => [['social_account_id' => (string) $account->id, 'content_type' => ContentType::LinkedInPost->value]],
+        'prompt_template' => 'Write about {{ trigger.title }}',
+    ]);
+
+    PostContentGenerator::assertPrompted(fn ($prompt) => $prompt->agent->platformContext === ContentType::LinkedInPost->value);
+});
+
+it('writes for the most restrictive network when several are selected', function () {
+    PostContentGenerator::fake([
+        ['content' => 'c', 'image_title' => 't', 'image_body' => 'b', 'image_keywords' => ['k']],
+    ]);
+    PostContentHumanizer::fake([['content' => 'c', 'image_title' => 't', 'image_body' => 'b']]);
+
+    $workspace = Workspace::factory()->create();
+    $linkedin = SocialAccount::factory()->for($workspace)->create(['platform' => 'linkedin']);
+    $x = SocialAccount::factory()->for($workspace)->create(['platform' => 'x']);
+    $run = AutomationRun::factory()->for(Automation::factory()->for($workspace))->create([
+        'context' => ['trigger' => ['title' => 'News']],
+    ]);
+
+    // X caps at 280 chars, LinkedIn at 3000 — copy must fit the tighter one.
+    app(RunGenerateNode::class)($run, [
+        'accounts' => [
+            ['social_account_id' => (string) $linkedin->id, 'content_type' => ContentType::LinkedInPost->value],
+            ['social_account_id' => (string) $x->id, 'content_type' => ContentType::XPost->value],
+        ],
+        'prompt_template' => 'Write about {{ trigger.title }}',
+    ]);
+
+    PostContentGenerator::assertPrompted(fn ($prompt) => $prompt->agent->platformContext === ContentType::XPost->value);
+    // The humanizer second pass gets the same context so it can't rewrite the
+    // copy back over the platform's character cap.
+    PostContentHumanizer::assertPrompted(fn ($prompt) => $prompt->agent->platformContext === ContentType::XPost->value);
+});
+
+it('leaves the platform context null when no account carries a content type', function () {
+    PostContentGenerator::fake([
+        ['content' => 'c', 'image_title' => 't', 'image_body' => 'b', 'image_keywords' => ['k']],
+    ]);
+    PostContentHumanizer::fake([['content' => 'c', 'image_title' => 't', 'image_body' => 'b']]);
+
+    $workspace = Workspace::factory()->create();
+    $account = SocialAccount::factory()->for($workspace)->create(['platform' => 'x']);
+    $run = AutomationRun::factory()->for(Automation::factory()->for($workspace))->create([
+        'context' => ['trigger' => ['title' => 'News']],
+    ]);
+
+    app(RunGenerateNode::class)($run, [
+        'accounts' => [['social_account_id' => (string) $account->id]],
+        'prompt_template' => 'Write about {{ trigger.title }}',
+    ]);
+
+    PostContentGenerator::assertPrompted(fn ($prompt) => $prompt->agent->platformContext === null);
+});
+
+it('still resolves the most restrictive context when the format is a carousel', function () {
+    PostContentGenerator::fake([
+        ['caption' => 'cap', 'slides' => [
+            ['title' => 'S1', 'body' => 'B1', 'image_keywords' => ['a']],
+            ['title' => 'S2', 'body' => 'B2', 'image_keywords' => ['b']],
+        ]],
+    ]);
+    PostContentHumanizer::fake([
+        ['caption' => 'cap', 'slides' => [['title' => 'S1', 'body' => 'B1'], ['title' => 'S2', 'body' => 'B2']]],
+    ]);
+
+    $workspace = Workspace::factory()->create();
+    $instagram = SocialAccount::factory()->for($workspace)->create(['platform' => 'instagram']);
+    $x = SocialAccount::factory()->for($workspace)->create(['platform' => 'x']);
+    $run = AutomationRun::factory()->for(Automation::factory()->for($workspace))->create([
+        'context' => ['trigger' => ['title' => 'News']],
+    ]);
+
+    // Instagram feed is carousel-capable, so the format is a carousel, yet the
+    // platform context must still be X (280) — the tightest selected network.
+    app(RunGenerateNode::class)($run, [
+        'accounts' => [
+            ['social_account_id' => (string) $instagram->id, 'content_type' => ContentType::InstagramFeed->value],
+            ['social_account_id' => (string) $x->id, 'content_type' => ContentType::XPost->value],
+        ],
+        'prompt_template' => 'Write about {{ trigger.title }}',
+        'target_slide_count' => 2,
+    ]);
+
+    PostContentGenerator::assertPrompted(fn ($prompt) => $prompt->agent->format === 'carousel'
+        && $prompt->agent->platformContext === ContentType::XPost->value);
+});
+
+it('leaves the platform context null for the legacy social_account_ids shape', function () {
+    PostContentGenerator::fake([
+        ['content' => 'c', 'image_title' => 't', 'image_body' => 'b', 'image_keywords' => ['k']],
+    ]);
+    PostContentHumanizer::fake([['content' => 'c', 'image_title' => 't', 'image_body' => 'b']]);
+
+    $workspace = Workspace::factory()->create();
+    $account = SocialAccount::factory()->for($workspace)->create(['platform' => 'x']);
+    $run = AutomationRun::factory()->for(Automation::factory()->for($workspace))->create([
+        'context' => ['trigger' => ['title' => 'News']],
+    ]);
+
+    app(RunGenerateNode::class)($run, [
+        'social_account_ids' => [(string) $account->id],
+        'prompt_template' => 'Write about {{ trigger.title }}',
+    ]);
+
+    PostContentGenerator::assertPrompted(fn ($prompt) => $prompt->agent->platformContext === null);
+});
+
 it('interpolates the prompt template before passing it to the generator', function () {
     PostContentGenerator::fake([
         ['content' => 'Interpolated content', 'image_title' => 'Title', 'image_body' => 'Body', 'image_keywords' => ['kw']],
@@ -165,7 +321,7 @@ it('attaches a generated image to a single-format post', function () {
             ['social_account_id' => (string) $account->id, 'content_type' => ContentType::XPost->value, 'meta' => []],
         ],
         'prompt_template' => 'Write about {{ trigger.title }}',
-        'include_image' => true,
+        'target_slide_count' => 1,
     ]);
 
     expect($result->status->value)->toBe('completed');
@@ -221,7 +377,7 @@ it('attaches one image per slide for carousel', function () {
     expect($post->media)->toHaveCount(3);
 });
 
-it('skips images when include_image is false', function () {
+it('skips images when image count is zero', function () {
     PostContentGenerator::fake([
         ['content' => 'No image post', 'image_title' => 'Title', 'image_body' => 'Body', 'image_keywords' => ['kw']],
     ]);
@@ -248,7 +404,7 @@ it('skips images when include_image is false', function () {
             ['social_account_id' => (string) $account->id, 'content_type' => ContentType::XPost->value, 'meta' => []],
         ],
         'prompt_template' => 'Write about {{ trigger.title }}',
-        'include_image' => false,
+        'target_slide_count' => 0,
     ]);
 
     expect($result->status->value)->toBe('completed');
@@ -286,7 +442,7 @@ it('does not generate images or persist on a dry run', function () {
             ['social_account_id' => (string) $account->id, 'content_type' => ContentType::XPost->value, 'meta' => []],
         ],
         'prompt_template' => 'Write about {{ trigger.title }}',
-        'include_image' => true,
+        'target_slide_count' => 1,
     ]);
 
     expect($result->status->value)->toBe('completed');
