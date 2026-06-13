@@ -35,10 +35,13 @@ import {
 } from '@/components/ui/tooltip';
 import date from '@/date';
 import type { Automation } from '@/types/automation/automation';
+import type { NodeRunStatusValue } from '@/types/automation/node-run-status';
+import type { NodeTypeValue } from '@/types/automation/node-type';
+import { RunStatus, type RunStatusValue } from '@/types/automation/run-status';
 
 type Invocation = {
     id: string;
-    status: string;
+    status: RunStatusValue;
     is_manual: boolean;
     node_run_count: number;
     duration_ms: number | null;
@@ -51,8 +54,8 @@ type Invocation = {
 type NodeRun = {
     id: string;
     node_id: string;
-    node_type: string;
-    status: string;
+    node_type: NodeTypeValue;
+    status: NodeRunStatusValue;
     error: { message?: string } | null;
     started_at: string | null;
     finished_at: string | null;
@@ -74,25 +77,25 @@ const statusLabel = computed(() =>
 );
 
 const statusVariant = (
-    status: string,
+    status: RunStatusValue | NodeRunStatusValue,
 ): 'default' | 'secondary' | 'destructive' | 'outline' => {
-    if (status === 'completed') return 'default';
-    if (status === 'failed' || status === 'cancelled') return 'destructive';
-    if (status === 'running' || status === 'waiting') return 'secondary';
+    if (status === RunStatus.Completed) return 'default';
+    if (status === RunStatus.Failed || status === RunStatus.Cancelled) return 'destructive';
+    if (status === RunStatus.Running || status === RunStatus.Waiting) return 'secondary';
     return 'outline';
 };
 
 const summary = (invocation: Invocation): string => {
-    if (invocation.status === 'failed')
+    if (invocation.status === RunStatus.Failed)
         return (
             invocation.error_message ??
             trans('automations.invocations.summary.failed')
         );
-    if (invocation.status === 'completed')
+    if (invocation.status === RunStatus.Completed)
         return trans('automations.invocations.summary.completed');
-    if (invocation.status === 'running' || invocation.status === 'waiting')
+    if (invocation.status === RunStatus.Running || invocation.status === RunStatus.Waiting)
         return trans('automations.invocations.summary.running');
-    if (invocation.status === 'cancelled')
+    if (invocation.status === RunStatus.Cancelled)
         return trans('automations.invocations.summary.cancelled');
     return trans('automations.invocations.summary.pending');
 };

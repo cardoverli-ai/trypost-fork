@@ -12,12 +12,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { useAutomationEcho } from '@/composables/echo/useAutomationEcho';
 import { test as testAutomation } from '@/routes/app/automations';
+import { NodeRunStatus, type NodeRunStatusValue } from '@/types/automation/node-run-status';
+import { NodeType, type NodeTypeValue } from '@/types/automation/node-type';
+import { RunStatus, type RunStatusValue } from '@/types/automation/run-status';
 
 interface NodeRun {
     id: string;
     node_id: string;
-    node_type: string;
-    status: string;
+    node_type: NodeTypeValue;
+    status: NodeRunStatusValue;
     input: Record<string, unknown> | null;
     output: Record<string, unknown> | null;
     error: { message?: string } | null;
@@ -27,7 +30,7 @@ interface NodeRun {
 
 interface Run {
     id: string;
-    status: string;
+    status: RunStatusValue;
     context: Record<string, unknown> | null;
     error: { message?: string } | null;
     started_at: string | null;
@@ -98,29 +101,35 @@ const runTest = async () => {
     await start();
 };
 
-const statusLabel = (status: string): string => {
-    const map: Record<string, string> = {
-        running: trans('automations.test.in_progress'),
-        completed: trans('automations.test.completed'),
-        failed: trans('automations.test.failed'),
-        waiting: trans('automations.test.waiting'),
+const statusLabel = (status: NodeRunStatusValue): string => {
+    const map: Partial<Record<NodeRunStatusValue, string>> = {
+        [NodeRunStatus.Running]: trans('automations.test.in_progress'),
+        [NodeRunStatus.Completed]: trans('automations.test.completed'),
+        [NodeRunStatus.Failed]: trans('automations.test.failed'),
     };
     return map[status] ?? status;
 };
 
-const nodeStatusIcon = (status: string) => {
-    if (status === 'completed') return IconCircleCheck;
-    if (status === 'failed') return IconAlertCircle;
-    if (status === 'running') return IconLoader2;
+const nodeStatusIcon = (status: NodeRunStatusValue) => {
+    if (status === NodeRunStatus.Completed) return IconCircleCheck;
+    if (status === NodeRunStatus.Failed) return IconAlertCircle;
+    if (status === NodeRunStatus.Running) return IconLoader2;
     return IconCircleDot;
+};
+
+const nodeStatusTile = (status: NodeRunStatusValue): string => {
+    if (status === NodeRunStatus.Completed) return 'bg-emerald-200 text-emerald-900';
+    if (status === NodeRunStatus.Failed) return 'bg-rose-200 text-rose-900';
+    if (status === NodeRunStatus.Running) return 'bg-amber-200 text-amber-900';
+    return 'bg-zinc-200 text-zinc-900';
 };
 
 // Fetch nodes (RSS / HTTP) short-circuit via the `no_items` handle with an
 // output of `{ fetch: { count: 0 } }` when nothing new arrived. Surface that
 // as an explicit note instead of an uninformative empty JSON blob.
 const isZeroFetchResult = (nodeRun: NodeRun): boolean => {
-    if (nodeRun.status !== 'completed') return false;
-    if (nodeRun.node_type !== 'fetch_rss' && nodeRun.node_type !== 'http_request') return false;
+    if (nodeRun.status !== NodeRunStatus.Completed) return false;
+    if (nodeRun.node_type !== NodeType.FetchRss && nodeRun.node_type !== NodeType.HttpRequest) return false;
     const fetch = nodeRun.output?.fetch as { count?: number } | undefined;
     return fetch?.count === 0;
 };
@@ -170,7 +179,7 @@ const isZeroFetchResult = (nodeRun: NodeRun): boolean => {
         </div>
 
         <div
-            v-if="run && run.status === 'failed' && run.error?.message"
+            v-if="run && run.status === RunStatus.Failed && run.error?.message"
             class="flex items-start gap-2.5 rounded-xl border-2 border-rose-700 bg-rose-50 p-4 text-sm font-medium text-rose-800"
         >
             <IconAlertCircle class="mt-0.5 size-5 shrink-0" stroke-width="2.5" />
@@ -190,18 +199,12 @@ const isZeroFetchResult = (nodeRun: NodeRun): boolean => {
             >
                 <div class="flex items-center gap-3 p-4">
                     <div
-                        :class="[
-                            'inline-flex size-10 -rotate-3 shrink-0 items-center justify-center rounded-xl border-2 border-foreground shadow-2xs',
-                            nodeRun.status === 'completed' && 'bg-emerald-200 text-emerald-900',
-                            nodeRun.status === 'failed' && 'bg-rose-200 text-rose-900',
-                            nodeRun.status === 'running' && 'bg-amber-200 text-amber-900',
-                            !['completed', 'failed', 'running'].includes(nodeRun.status) && 'bg-zinc-200 text-zinc-900',
-                        ]"
+                        :class="['inline-flex size-10 -rotate-3 shrink-0 items-center justify-center rounded-xl border-2 border-foreground shadow-2xs', nodeStatusTile(nodeRun.status)]"
                     >
-                        <component :is="nodeStatusIcon(nodeRun.status)" :class="['size-5', nodeRun.status === 'running' && 'animate-spin']" stroke-width="2.5" />
+                        <component :is="nodeStatusIcon(nodeRun.status)" :class="['size-5', nodeRun.status === NodeRunStatus.Running && 'animate-spin']" stroke-width="2.5" />
                     </div>
                     <div class="min-w-0 flex-1">
-                        <p class="text-base font-bold capitalize leading-tight">{{ nodeRun.node_type.replace('_', ' ') }}</p>
+                        <p class="text-base font-bold capitalize leading-tight">{{ $t(`automations.node_type.${nodeRun.node_type}`) }}</p>
                         <p class="text-xs font-semibold uppercase tracking-wider text-foreground/50">{{ statusLabel(nodeRun.status) }}</p>
                     </div>
                 </div>
