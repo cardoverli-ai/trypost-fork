@@ -284,8 +284,6 @@ class BlueskyPublisher
             config('trypost.platforms.bluesky.default_service'),
         ])));
 
-        $lastError = null;
-        $lastEndpoint = null;
         foreach ($endpoints as $endpoint) {
             try {
                 $request = $this->socialHttp();
@@ -303,11 +301,6 @@ class BlueskyPublisher
                     return $did;
                 }
             } catch (Throwable $e) {
-                // Per-endpoint failures are expected during transient outages;
-                // keep them at debug to avoid noisy logs and surface a single
-                // warning below only when every endpoint has been exhausted.
-                $lastError = $e->getMessage();
-                $lastEndpoint = $endpoint;
                 Log::debug('Bluesky handle resolution attempt failed', [
                     'handle' => $handle,
                     'endpoint' => $endpoint,
@@ -315,12 +308,6 @@ class BlueskyPublisher
                 ]);
             }
         }
-
-        Log::warning('Bluesky handle resolution failed; mention will be sent as plain text', [
-            'handle' => $handle,
-            'endpoint' => $lastEndpoint,
-            'error' => $lastError,
-        ]);
 
         return null;
     }

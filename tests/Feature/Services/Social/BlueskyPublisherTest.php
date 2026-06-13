@@ -111,7 +111,7 @@ test('bluesky publisher resolves mentions to DIDs as facets', function () {
         '*/xrpc/com.atproto.identity.resolveHandle*' => Http::response([
             'did' => 'did:plc:friend456',
         ], 200),
-        'https://bsky.social/xrpc/com.atproto.repo.createRecord' => Http::response([
+        config('trypost.platforms.bluesky.default_service').'/xrpc/com.atproto.repo.createRecord' => Http::response([
             'uri' => 'at://did:plc:testuser123/app.bsky.feed.post/3abc123xyz',
             'cid' => 'bafyreiabc123',
         ], 200),
@@ -143,7 +143,7 @@ test('bluesky publisher skips mention facet when handle cannot be resolved', fun
 
     Http::fake([
         '*/xrpc/com.atproto.identity.resolveHandle*' => Http::response(['error' => 'InvalidRequest'], 400),
-        'https://bsky.social/xrpc/com.atproto.repo.createRecord' => Http::response([
+        config('trypost.platforms.bluesky.default_service').'/xrpc/com.atproto.repo.createRecord' => Http::response([
             'uri' => 'at://did:plc:testuser123/app.bsky.feed.post/3abc123xyz',
             'cid' => 'bafyreiabc123',
         ], 200),
