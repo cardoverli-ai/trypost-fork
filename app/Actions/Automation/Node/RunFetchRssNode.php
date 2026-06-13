@@ -13,7 +13,6 @@ use App\Services\Automation\ExpressionResolver;
 use App\Services\Brand\SafeHttpFetcher;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 use RuntimeException;
 use SimpleXMLElement;
 use Throwable;
@@ -66,13 +65,7 @@ class RunFetchRssNode
 
         try {
             $xml = new SimpleXMLElement($response->body());
-        } catch (Throwable $e) {
-            Log::warning('Fetch RSS node: malformed feed', [
-                'run_id' => $run->id,
-                'feed_url' => $feedUrl,
-                'error' => $e->getMessage(),
-            ]);
-
+        } catch (Throwable) {
             return NodeRunResult::failed(__('automations.errors.fetch_rss_malformed'));
         }
 
