@@ -49,6 +49,19 @@ class AutomationRun extends Model
     }
 
     /**
+     * Wall-clock execution time, or null while the run hasn't both started and
+     * finished. Single source of truth for the Invocations list and metrics.
+     */
+    public function durationInMilliseconds(): ?int
+    {
+        if ($this->started_at === null || $this->finished_at === null) {
+            return null;
+        }
+
+        return (int) $this->started_at->diffInMilliseconds($this->finished_at);
+    }
+
+    /**
      * Context for template (`{{ ... }}`) resolution: the run context plus the
      * automation's workflow variables, merged in-memory. Variables are NEVER
      * persisted into the run context (they're encrypted at rest and would

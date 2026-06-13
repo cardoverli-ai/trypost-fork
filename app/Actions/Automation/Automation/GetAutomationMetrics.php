@@ -43,8 +43,8 @@ class GetAutomationMetrics
         $successRate = $finished > 0 ? (int) round($completed->count() / $finished * 100) : null;
 
         $durations = $completed
-            ->filter(fn ($run) => $run->started_at !== null && $run->finished_at !== null)
-            ->map(fn ($run) => $run->started_at->diffInMilliseconds($run->finished_at));
+            ->map(fn ($run) => $run->durationInMilliseconds())
+            ->filter(fn ($ms) => $ms !== null);
         $avgDurationMs = $durations->isNotEmpty() ? (int) round($durations->avg()) : null;
 
         return [

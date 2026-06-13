@@ -18,16 +18,12 @@ class AutomationInvocationResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $durationMs = $this->started_at !== null && $this->finished_at !== null
-            ? $this->started_at->diffInMilliseconds($this->finished_at)
-            : null;
-
         return [
             'id' => $this->id,
             'status' => $this->status->value,
             'is_manual' => (bool) $this->is_manual,
             'node_run_count' => (int) ($this->node_runs_count ?? 0),
-            'duration_ms' => $durationMs,
+            'duration_ms' => $this->durationInMilliseconds(),
             'error_message' => is_array($this->error) ? ($this->error['message'] ?? null) : $this->error,
             'created_at' => $this->created_at,
             'started_at' => $this->started_at,

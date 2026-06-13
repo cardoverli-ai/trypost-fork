@@ -33,6 +33,7 @@ use App\Models\AutomationNodeRun;
 use App\Models\AutomationRun;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Response as HttpResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -183,7 +184,7 @@ class AutomationController extends Controller
         RetryRunFromNode $retry,
         Automation $automation,
         AutomationRun $run,
-    ): \Illuminate\Http\Response {
+    ): HttpResponse {
         $this->authorize('update', $automation);
         abort_unless($run->automation_id === $automation->id, 404);
 

@@ -16,6 +16,7 @@ return new class extends Migration
         Schema::create('automation_runs', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('automation_id')->constrained('automations')->cascadeOnDelete();
+            $table->foreignUuid('root_run_id')->nullable();
             $table->foreignUuid('trigger_item_id')->nullable()->constrained('automation_trigger_items')->nullOnDelete();
             $table->string('current_node_id')->nullable();
             $table->string('status')->default('pending');
@@ -31,6 +32,10 @@ return new class extends Migration
 
             $table->index(['automation_id', 'status']);
             $table->index(['status', 'next_action_at']);
+        });
+
+        Schema::table('automation_runs', function (Blueprint $table) {
+            $table->foreign('root_run_id')->references('id')->on('automation_runs')->nullOnDelete();
         });
     }
 

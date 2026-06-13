@@ -22,6 +22,7 @@ return new class extends Migration
             $table->string('trigger_type')->nullable();
             $table->json('nodes')->nullable();
             $table->json('connections')->nullable();
+            $table->json('variables')->nullable();
             $table->timestamp('activated_at')->nullable();
             $table->timestamp('paused_at')->nullable();
             $table->timestamps();

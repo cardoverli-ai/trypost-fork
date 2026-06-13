@@ -38,6 +38,19 @@ it('nulls the trigger_type column when there is no trigger node', function () {
     expect($automation->trigger_type)->toBeNull();
 });
 
+it('computes run duration only once both timestamps are set', function () {
+    $start = now()->startOfSecond();
+
+    $running = AutomationRun::factory()->make(['started_at' => $start, 'finished_at' => null]);
+    $finished = AutomationRun::factory()->make([
+        'started_at' => $start,
+        'finished_at' => $start->copy()->addSeconds(2),
+    ]);
+
+    expect($running->durationInMilliseconds())->toBeNull()
+        ->and($finished->durationInMilliseconds())->toBe(2000);
+});
+
 it('relates trigger items, runs and node runs', function () {
     $automation = Automation::factory()->create();
     $item = AutomationTriggerItem::factory()->for($automation)->create();
