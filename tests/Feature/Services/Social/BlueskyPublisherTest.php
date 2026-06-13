@@ -123,6 +123,27 @@ test('bluesky publisher strips trailing punctuation from URL facets', function (
     });
 });
 
+test('bluesky publisher keeps a closing paren that has a matching open paren', function () {
+    $this->post->update(['content' => 'see https://en.wikipedia.org/wiki/Foo_(bar)']);
+
+    Http::fake([
+        config('trypost.platforms.bluesky.default_service').'/xrpc/com.atproto.repo.createRecord' => Http::response([
+            'uri' => 'at://did:plc:testuser123/app.bsky.feed.post/3abc123xyz',
+            'cid' => 'bafyreiabc123',
+        ], 200),
+    ]);
+
+    $this->publisher->publish($this->postPlatform);
+
+    Http::assertSent(function ($request) {
+        $link = collect($request['record']['facets'] ?? [])
+            ->first(fn ($facet) => $facet['features'][0]['$type'] === 'app.bsky.richtext.facet#link');
+
+        // The trailing ')' is part of the URL because it has a matching '('.
+        return $link && $link['features'][0]['uri'] === 'https://en.wikipedia.org/wiki/Foo_(bar)';
+    });
+});
+
 test('bluesky publisher computes byte offsets after multibyte characters', function () {
     $this->post->update(['content' => 'Olá 🎉 #café']);
 
