@@ -84,6 +84,22 @@ const isWeekdaySelected = (value: number) =>
 const generatedCron = computed(() => generateScheduleCron(local.value));
 const humanSchedule = computed(() => scheduleSummary(local.value));
 
+// Append the user's timezone only for schedules pinned to a clock time
+// (days/weeks/months). Minute/hour intervals are relative, so a timezone
+// would be meaningless next to them.
+const scheduleSummaryLine = computed(() => {
+    if (!humanSchedule.value) {
+        return '';
+    }
+    const pinsClockTime = local.value.schedule_field === ScheduleField.Days
+        || local.value.schedule_field === ScheduleField.Weeks
+        || local.value.schedule_field === ScheduleField.Months;
+
+    return pinsClockTime
+        ? `${humanSchedule.value} (${timezoneAbbr.value})`
+        : humanSchedule.value;
+});
+
 watch(generatedCron, (cron) => {
     if (local.value.trigger_type === TriggerType.Schedule) {
         local.value.cron = cron;
@@ -269,8 +285,7 @@ watch(local, (val) => emit('update', val), { deep: true });
                 </div>
             </template>
 
-            <p class="rounded-md bg-muted px-3 py-2 text-xs text-foreground/70">{{ humanSchedule }}</p>
-            <p class="text-xs text-foreground/50">{{ $t('automations.config.trigger.schedule.timezone_hint', { tz: timezoneAbbr }) }}</p>
+            <p class="rounded-md bg-muted px-3 py-2 text-xs text-foreground/70">{{ scheduleSummaryLine }}</p>
         </template>
     </div>
 </template>

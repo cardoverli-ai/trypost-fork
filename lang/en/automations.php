@@ -249,7 +249,6 @@ return [
                 'minute' => 'Trigger at minute',
                 'weekdays' => 'Trigger on weekdays',
                 'day_of_month' => 'Day of month',
-                'timezone_hint' => 'All times in :tz',
                 'weekday_names' => [
                     'sun' => 'Sun',
                     'mon' => 'Mon',

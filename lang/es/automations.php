@@ -249,7 +249,6 @@ return [
                 'minute' => 'Disparar al minuto',
                 'weekdays' => 'Disparar en días',
                 'day_of_month' => 'Día del mes',
-                'timezone_hint' => 'Todos los horarios en :tz',
                 'weekday_names' => [
                     'sun' => 'Dom',
                     'mon' => 'Lun',
