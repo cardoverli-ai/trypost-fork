@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 use App\Enums\SocialAccount\Platform;
 use App\Enums\UserWorkspace\Role;
+use App\Jobs\SyncTelegramAccountAvatar;
 use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\Social\ConnectionVerifier;
 use App\Services\Social\TelegramConnectCode;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 
 beforeEach(function () {
+    Queue::fake();
+
     config([
         'trypost.platforms.telegram.bot_token' => 'TESTTOKEN',
         'trypost.platforms.telegram.bot_username' => 'TryPostBot',
@@ -72,6 +76,8 @@ it('links the channel when the webhook receives a matching /connect', function (
     expect(data_get($account->meta, 'chat_id'))->toBe('-1001234567890');
     expect(data_get($account->meta, 'connect_nonce'))
         ->toBe(data_get(TelegramConnectCode::decode($code), 'nonce'));
+
+    Queue::assertPushed(SyncTelegramAccountAvatar::class);
 });
 
 it('links a private channel that has no username', function () {

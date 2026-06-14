@@ -4,16 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Webhooks;
 
-use App\Enums\SocialAccount\Platform as SocialPlatform;
-use App\Enums\SocialAccount\Status;
-use App\Features\SocialAccountLimit;
+use App\Actions\SocialAccount\ConnectTelegramChannel;
 use App\Http\Controllers\Controller;
 use App\Models\Workspace;
 use App\Services\Social\TelegramConnectCode;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Cache;
-use Laravel\Pennant\Feature;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class TelegramWebhookController extends Controller
@@ -43,63 +39,10 @@ class TelegramWebhookController extends Controller
         $payload = TelegramConnectCode::decode($matches[1]);
         $workspace = $payload === null ? null : Workspace::find(data_get($payload, 'workspace_id'));
 
-        if ($workspace === null) {
-            return response()->noContent();
+        if ($workspace !== null) {
+            ConnectTelegramChannel::execute($workspace, $chat, data_get($payload, 'nonce'));
         }
-
-        $chatId = (string) data_get($chat, 'id');
-        $username = data_get($chat, 'username');
-
-        // Mirror the controller's limit gate: block only brand-new accounts, never reconnects.
-        $isNewAccount = ! $workspace->socialAccounts()
-            ->where('platform', SocialPlatform::Telegram->value)
-            ->where('platform_user_id', $chatId)
-            ->exists();
-
-        if ($isNewAccount && $this->workspaceAtAccountLimit($workspace)) {
-            return response()->noContent();
-        }
-
-        // Consume the code once so a leaked code can't be replayed to link another chat.
-        if (! Cache::add("telegram:connect:{$payload['nonce']}", true, now()->addMinutes(15))) {
-            return response()->noContent();
-        }
-
-        $workspace->socialAccounts()->updateOrCreate(
-            [
-                'platform' => SocialPlatform::Telegram->value,
-                'platform_user_id' => $chatId,
-            ],
-            [
-                'username' => $username,
-                'display_name' => data_get($chat, 'title') ?? $username ?? "Telegram {$chatId}",
-                'access_token' => '',
-                'refresh_token' => '',
-                'token_expires_at' => null,
-                'scopes' => [],
-                'status' => Status::Connected,
-                'error_message' => null,
-                'disconnected_at' => null,
-                'meta' => [
-                    'chat_id' => $chatId,
-                    'username' => $username,
-                    'type' => data_get($chat, 'type'),
-                    'connect_nonce' => data_get($payload, 'nonce'),
-                ],
-            ],
-        );
 
         return response()->noContent();
-    }
-
-    private function workspaceAtAccountLimit(Workspace $workspace): bool
-    {
-        if (config('trypost.self_hosted')) {
-            return false;
-        }
-
-        $limit = Feature::for($workspace->account)->value(SocialAccountLimit::class);
-
-        return $workspace->socialAccounts()->count() >= $limit;
     }
 }
