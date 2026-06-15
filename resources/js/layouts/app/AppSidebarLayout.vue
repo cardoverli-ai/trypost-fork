@@ -4,6 +4,7 @@ import { onBeforeUnmount, onMounted } from 'vue';
 
 import AppHeader from '@/components/AppHeader.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
+import DiscordWidget from '@/components/DiscordWidget.vue';
 import Toast from '@/components/Toast.vue';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import UpgradeDialog from '@/components/UpgradeDialog.vue';
@@ -76,4 +77,5 @@ onBeforeUnmount(() => {
     </SidebarProvider>
     <UpgradeDialog />
     <Toast />
+    <DiscordWidget />
 </template>

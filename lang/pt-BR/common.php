@@ -3,6 +3,12 @@
 declare(strict_types=1);
 
 return [
+
+    'discord' => [
+        'label' => 'Discord',
+        'join' => 'Entre na nossa comunidade no Discord',
+    ],
+
     'back' => 'Voltar',
 
     'confirm_modal' => [
