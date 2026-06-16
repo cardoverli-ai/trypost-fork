@@ -18,7 +18,10 @@ use Illuminate\Support\Facades\Http;
 
 beforeEach(function () {
     Cache::flush(); // channel list is cached per guild — isolate between tests
-    config(['trypost.platforms.discord.bot_token' => 'BOTTOKEN']);
+    config([
+        'trypost.platforms.discord.bot_token' => 'BOTTOKEN',
+        'services.discord.client_id' => '999000111', // bot user id, used by the channel permission check
+    ]);
 
     $this->user = User::factory()->create();
     $this->workspace = Workspace::factory()->create(['user_id' => $this->user->id]);
@@ -51,6 +54,11 @@ function fakeDiscord(array $messageResponse = ['id' => '777'], int $status = 200
         config('trypost.platforms.discord.api').'/guilds/*/channels' => Http::response([
             ['id' => '444555666', 'name' => 'general', 'type' => 0],
         ], 200),
+        // @everyone (role id == guild id) grants VIEW_CHANNEL + SEND_MESSAGES (1024 + 2048).
+        config('trypost.platforms.discord.api').'/guilds/*/roles' => Http::response([
+            ['id' => '111222333', 'name' => '@everyone', 'permissions' => '3072'],
+        ], 200),
+        config('trypost.platforms.discord.api').'/guilds/*/members/*' => Http::response(['roles' => []], 200),
         config('trypost.platforms.discord.api').'/channels/*/messages' => Http::response($messageResponse, $status),
     ]);
 }
@@ -140,6 +148,8 @@ test('uploads media as a multipart attachment', function () {
 
     Http::fake([
         config('trypost.platforms.discord.api').'/guilds/*/channels' => Http::response([['id' => '444555666', 'name' => 'general', 'type' => 0]], 200),
+        config('trypost.platforms.discord.api').'/guilds/*/roles' => Http::response([['id' => '111222333', 'name' => '@everyone', 'permissions' => '3072']], 200),
+        config('trypost.platforms.discord.api').'/guilds/*/members/*' => Http::response(['roles' => []], 200),
         'example.com/*' => Http::response(str_repeat('x', 1024), 200),
         config('trypost.platforms.discord.api').'/channels/*/messages' => Http::response(['id' => '901'], 200),
     ]);

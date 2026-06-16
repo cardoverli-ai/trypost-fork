@@ -91,7 +91,7 @@ class DiscordPublisher
 
         if (! $allowed) {
             throw new DiscordPublishException(
-                userMessage: 'The selected channel is not part of this Discord server.',
+                userMessage: 'The bot can\'t post in the selected channel. Make sure it still exists, belongs to this server, and the bot has permission to send messages there.',
                 category: ErrorCategory::Permission,
             );
         }
