@@ -35,6 +35,15 @@ const local = ref<FetchRssConfig>({
 
 watch(local, (val) => emit('update', val), { deep: true });
 
+// Changing the feed invalidates the discovered fields — they belong to the old
+// feed and would otherwise keep being offered as stale autocomplete suggestions.
+watch(
+    () => local.value.feed_url,
+    () => {
+        local.value.discovered_fields = [];
+    },
+);
+
 const inspectHttp = useHttp<{ feed_url: string }, { fields: DiscoveredField[] }>({ feed_url: '' });
 const isInspecting = ref(false);
 const inspectError = ref<string | null>(null);

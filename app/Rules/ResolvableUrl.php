@@ -28,8 +28,12 @@ class ResolvableUrl implements ValidationRule
         }
 
         $candidate = preg_replace('/\{\{\s*[\w.]+\s*\}\}/', 'placeholder', $value);
+        $scheme = strtolower((string) parse_url($candidate, PHP_URL_SCHEME));
 
-        if (filter_var($candidate, FILTER_VALIDATE_URL) === false) {
+        // Require a real http(s) URL once expressions are substituted, so the rule
+        // is no weaker than the plain `url` rule it replaces (rejects file://,
+        // javascript://, etc.) while still allowing templated hosts/queries.
+        if (filter_var($candidate, FILTER_VALIDATE_URL) === false || ! in_array($scheme, ['http', 'https'], true)) {
             $fail('validation.url')->translate();
         }
     }

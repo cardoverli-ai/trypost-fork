@@ -39,7 +39,6 @@ use App\Services\Brand\SafeHttpFetcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response as HttpResponse;
-use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
@@ -225,15 +224,12 @@ class AutomationController extends Controller
             ['variables' => $automation->resolvedVariables()],
         );
 
+        // SafeHttpFetcher::get() bundles the SSRF guard, a request timeout, a
+        // redirect cap and a branded user-agent — so a slow or hostile feed can't
+        // hang this synchronous request. It throws on SSRF, timeout or non-2xx.
         try {
-            $safeHttp->guardAgainstSsrf($feedUrl);
+            $response = $safeHttp->get($feedUrl);
         } catch (RuntimeException) {
-            return response()->json(['message' => __('automations.errors.url_not_allowed')], SymfonyResponse::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        $response = Http::get($feedUrl);
-
-        if (! $response->successful()) {
             return response()->json(['message' => __('automations.errors.fetch_rss_request_failed')], SymfonyResponse::HTTP_UNPROCESSABLE_ENTITY);
         }
 

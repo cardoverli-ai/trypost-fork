@@ -125,6 +125,60 @@ it('rejects a feed_url that is not a URL even after stripping expressions', func
         ->assertSessionHasErrors('nodes.0.data.feed_url');
 });
 
+it('rejects a non-http(s) scheme in feed_url', function () {
+    $automation = Automation::factory()->for($this->workspace)->create();
+
+    $this->actingAs($this->user)
+        ->put(route('app.automations.update', $automation->id), [
+            'nodes' => [[
+                'id' => 'fetch_1',
+                'type' => 'fetch_rss',
+                'position' => ['x' => 0, 'y' => 0],
+                'data' => ['feed_url' => 'file:///etc/passwd'],
+            ]],
+        ])
+        ->assertSessionHasErrors('nodes.0.data.feed_url');
+});
+
+it('accepts a templated url on an http_request node', function () {
+    $automation = Automation::factory()->for($this->workspace)->create();
+
+    $this->actingAs($this->user)
+        ->put(route('app.automations.update', $automation->id), [
+            'nodes' => [[
+                'id' => 'http_1',
+                'type' => 'http_request',
+                'position' => ['x' => 0, 'y' => 0],
+                'data' => [
+                    'url' => 'https://api.example.com/{{ variables.PATH }}/feed',
+                    'method' => 'GET',
+                    'auth_type' => 'none',
+                ],
+            ]],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+});
+
+it('accepts a templated url on a webhook node', function () {
+    $automation = Automation::factory()->for($this->workspace)->create();
+
+    $this->actingAs($this->user)
+        ->put(route('app.automations.update', $automation->id), [
+            'nodes' => [[
+                'id' => 'webhook_1',
+                'type' => 'webhook',
+                'position' => ['x' => 0, 'y' => 0],
+                'data' => [
+                    'url' => 'https://hooks.example.com/{{ variables.TOKEN }}',
+                    'method' => 'POST',
+                ],
+            ]],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+});
+
 it('forbids inspecting a feed for an automation in another workspace', function () {
     Http::fake(['1.1.1.1/*' => Http::response('<rss version="2.0"><channel></channel></rss>', 200)]);
 

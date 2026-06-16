@@ -60,7 +60,7 @@ class RunFetchRssNode
             ]);
         }
 
-        $response = Http::get($feedUrl);
+        $response = Http::timeout(10)->get($feedUrl);
 
         if (! $response->successful()) {
             return NodeRunResult::failed(__('automations.errors.fetch_rss_request_failed'), ['status' => $response->status()]);

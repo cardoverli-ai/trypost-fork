@@ -136,7 +136,7 @@ class UpdateAutomationRequest extends FormRequest
                 'discovered_fields.*.sample' => ['nullable', 'string'],
             ],
             NodeType::HttpRequest->value => [
-                'url' => ['required', 'url'],
+                'url' => ['required', new ResolvableUrl],
                 'method' => ['required', Rule::in(array_column(HttpMethod::cases(), 'value'))],
                 'auth_type' => ['required', Rule::in(array_column(AuthType::cases(), 'value'))],
                 'auth_token' => ['nullable', 'string'],
@@ -171,7 +171,7 @@ class UpdateAutomationRequest extends FormRequest
                 'scheduled_offset' => ['required_if:nodes.'.$i.'.data.mode,'.PublishMode::Scheduled->value, 'integer', 'min:0'],
             ],
             NodeType::Webhook->value => [
-                'url' => ['required', 'url'],
+                'url' => ['required', new ResolvableUrl],
                 'method' => ['required', Rule::in(array_column(HttpMethod::cases(), 'value'))],
                 'payload_template' => ['nullable', 'string'],
                 'headers' => ['nullable', 'array'],
