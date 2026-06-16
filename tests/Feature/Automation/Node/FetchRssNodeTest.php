@@ -28,7 +28,7 @@ const FETCH_RSS_MIXED = <<<'XML'
 <rss version="2.0"><channel>
   <item><title>Older</title><link>https://1.1.1.1/a</link><guid>a</guid><pubDate>Sat, 01 Feb 2025 12:00:00 +0000</pubDate></item>
   <item><title>Newer1</title><link>https://1.1.1.1/b</link><guid>b</guid><pubDate>Sun, 01 Jun 2025 12:00:00 +0000</pubDate></item>
-  <item><title>Newer2</title><link>https://1.1.1.1/c</link><guid>c</guid><pubDate>Mon, 15 Jun 2025 12:00:00 +0000</pubDate></item>
+  <item><title>Newer2</title><link>https://1.1.1.1/c</link><guid>c</guid><pubDate>Sun, 15 Jun 2025 12:00:00 +0000</pubDate></item>
 </channel></rss>
 XML;
 
@@ -256,7 +256,31 @@ it('advances the production watermark on a non-manual real-data run', function (
 
     $state = AutomationNodeState::for($automation->id, 'fetch_1');
     expect(CarbonImmutable::parse($state->data['last_item_date'])->toIso8601String())
-        ->toBe(CarbonImmutable::parse('Mon, 15 Jun 2025 12:00:00 +0000')->toIso8601String());
+        ->toBe(CarbonImmutable::parse('Sun, 15 Jun 2025 12:00:00 +0000')->toIso8601String());
+});
+
+it('processes an Atom feed (YouTube) that the old RSS-only parser dropped', function () {
+    Carbon::setTestNow('2026-06-16 10:00:00');
+    Http::fake(['1.1.1.1/*' => Http::response(file_get_contents(base_path('tests/fixtures/feeds/youtube_atom.xml')), 200)]);
+
+    $automation = Automation::factory()->active()->create();
+
+    // Watermark predates the single entry, so it counts as new.
+    AutomationNodeState::create([
+        'automation_id' => $automation->id,
+        'node_id' => 'fetch_1',
+        'data' => ['last_item_date' => '2026-01-01T00:00:00+00:00'],
+    ]);
+
+    $run = AutomationRun::factory()->for($automation)->create(['current_node_id' => 'fetch_1']);
+
+    $result = app(RunFetchRssNode::class)($run, ['feed_url' => 'https://1.1.1.1/feed']);
+
+    expect($result->status)->toBe(NodeRunStatus::Completed);
+    expect($result->output['fetch']['count'])->toBe(1);
+    expect($result->output['fetched']['title'])->toBe('Ninguém aguenta o TikTok Shop');
+    expect($result->output['fetched']['link'])->toBe('https://www.youtube.com/watch?v=bIQVeW4sTcE');
+    expect($result->output['fetched']['yt_videoId'])->toBe('bIQVeW4sTcE');
 });
 
 it('fails when feed_url is missing', function () {

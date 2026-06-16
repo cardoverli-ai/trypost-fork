@@ -10,11 +10,11 @@ use App\Enums\Automation\Run\Status as RunStatus;
 use App\Models\AutomationNodeState;
 use App\Models\AutomationRun;
 use App\Services\Automation\ExpressionResolver;
+use App\Services\Automation\FeedParser;
 use App\Services\Brand\SafeHttpFetcher;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
-use SimpleXMLElement;
 use Throwable;
 
 /**
@@ -40,6 +40,7 @@ class RunFetchRssNode
         private ExpressionResolver $resolver,
         private SafeHttpFetcher $safeHttp,
         private AdvanceAutomationRun $advance,
+        private FeedParser $parser,
     ) {}
 
     public function __invoke(AutomationRun $run, array $config): NodeRunResult
@@ -65,9 +66,9 @@ class RunFetchRssNode
             return NodeRunResult::failed(__('automations.errors.fetch_rss_request_failed'), ['status' => $response->status()]);
         }
 
-        try {
-            $xml = new SimpleXMLElement($response->body());
-        } catch (Throwable) {
+        $items = $this->parser->parse($response->body());
+
+        if ($items === null) {
             return NodeRunResult::failed(__('automations.errors.fetch_rss_malformed'));
         }
 
@@ -83,7 +84,7 @@ class RunFetchRssNode
             ? CarbonImmutable::createFromTimestamp(0)
             : $this->parseWatermark(data_get($state->data, 'last_item_date'));
 
-        [$newItems, $newestSeen] = $this->collectNewItems($xml, $watermark);
+        [$newItems, $newestSeen] = $this->collectNewItems($items, $watermark);
 
         if ($state !== null && $newestSeen !== null) {
             $state->update(['data' => array_merge($state->data ?? [], [
@@ -107,46 +108,44 @@ class RunFetchRssNode
         ]);
     }
 
-    private function collectNewItems(SimpleXMLElement $xml, CarbonImmutable $watermark): array
+    /**
+     * @param  list<array<string, mixed>>  $parsed  Normalized items from FeedParser.
+     * @return array{0: list<array<string, mixed>>, 1: ?CarbonImmutable}
+     */
+    private function collectNewItems(array $parsed, CarbonImmutable $watermark): array
     {
         $items = [];
         $newestSeen = null;
 
-        foreach ($xml->channel->item ?? [] as $item) {
-            $key = (string) ($item->guid ?? $item->link);
+        foreach ($parsed as $item) {
+            $key = (string) data_get($item, 'key', '');
             if ($key === '') {
                 continue;
             }
 
-            $pubDate = $this->parsePubDate((string) $item->pubDate);
-            if ($pubDate === null) {
+            $date = $this->parsePubDate((string) data_get($item, 'date', ''));
+            if ($date === null) {
                 continue;
             }
 
-            if ($newestSeen === null || $pubDate->greaterThan($newestSeen)) {
-                $newestSeen = $pubDate;
+            if ($newestSeen === null || $date->greaterThan($newestSeen)) {
+                $newestSeen = $date;
             }
 
-            if (! $pubDate->greaterThan($watermark)) {
+            if (! $date->greaterThan($watermark)) {
                 continue;
             }
 
-            $items[] = [
-                '_pubDate' => $pubDate,
-                'key' => $key,
-                'title' => (string) $item->title,
-                'link' => (string) $item->link,
-                'description' => (string) $item->description,
-                'pubDate' => (string) $item->pubDate,
-            ];
+            $item['_sort'] = $date->getTimestamp();
+            $items[] = $item;
         }
 
         // Process oldest-first so siblings inherit a stable order matching feed chronology.
-        usort($items, fn ($a, $b) => $a['_pubDate']->getTimestamp() <=> $b['_pubDate']->getTimestamp());
+        usort($items, fn ($a, $b) => $a['_sort'] <=> $b['_sort']);
 
         // Drop the internal sort key — downstream nodes shouldn't see it.
         $items = array_map(function (array $item): array {
-            unset($item['_pubDate']);
+            unset($item['_sort']);
 
             return $item;
         }, $items);

@@ -17,11 +17,13 @@ use App\Actions\Automation\Run\RetryRunFromNode;
 use App\Actions\Automation\Run\TestAutomation;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\App\Automations\ActivateAutomationRequest;
+use App\Http\Requests\App\Automations\InspectFeedRequest;
 use App\Http\Requests\App\Automations\PauseAutomationRequest;
 use App\Http\Requests\App\Automations\RetryRunRequest;
 use App\Http\Requests\App\Automations\StoreAutomationRequest;
 use App\Http\Requests\App\Automations\TestAutomationRequest;
 use App\Http\Requests\App\Automations\UpdateAutomationRequest;
+use App\Http\Resources\App\Automation\FeedInspectionResource;
 use App\Http\Resources\App\PlatformConfigResource;
 use App\Http\Resources\App\SocialAccountResource;
 use App\Http\Resources\AutomationInvocationResource;
@@ -31,11 +33,17 @@ use App\Http\Resources\AutomationRunResource;
 use App\Models\Automation;
 use App\Models\AutomationNodeRun;
 use App\Models\AutomationRun;
+use App\Services\Automation\ExpressionResolver;
+use App\Services\Automation\FeedParser;
+use App\Services\Brand\SafeHttpFetcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\Http;
 use Inertia\Inertia;
 use Inertia\Response;
+use RuntimeException;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class AutomationController extends Controller
 {
@@ -201,6 +209,41 @@ class AutomationController extends Controller
         $run = $test($automation, (bool) $request->validated('with_real_data', false));
 
         return response()->json(['run_id' => $run->id]);
+    }
+
+    public function inspectFeed(
+        InspectFeedRequest $request,
+        Automation $automation,
+        ExpressionResolver $resolver,
+        SafeHttpFetcher $safeHttp,
+        FeedParser $parser,
+    ): JsonResponse|FeedInspectionResource {
+        $this->authorize('update', $automation);
+
+        $feedUrl = $resolver->resolve(
+            (string) $request->validated('feed_url'),
+            ['variables' => $automation->resolvedVariables()],
+        );
+
+        try {
+            $safeHttp->guardAgainstSsrf($feedUrl);
+        } catch (RuntimeException) {
+            return response()->json(['message' => __('automations.errors.url_not_allowed')], SymfonyResponse::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $response = Http::get($feedUrl);
+
+        if (! $response->successful()) {
+            return response()->json(['message' => __('automations.errors.fetch_rss_request_failed')], SymfonyResponse::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $items = $parser->parse($response->body());
+
+        if ($items === null) {
+            return response()->json(['message' => __('automations.errors.fetch_rss_malformed')], SymfonyResponse::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return new FeedInspectionResource($items[0] ?? []);
     }
 
     public function showRun(Automation $automation, AutomationRun $run): JsonResponse

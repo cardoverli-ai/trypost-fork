@@ -137,6 +137,7 @@ provide(
     'automationExpressionCompletions',
     computed(() => buildExpressionCatalog(selectedNodeId.value, nodes.value, edges.value, variables.value)),
 );
+provide('automationId', props.automation.id);
 
 // Toggled by an expandable CodeEditor (see CodeEditor.vue) to slide out the
 // side-by-side editing panel, pushing the sidebar left to make room.
