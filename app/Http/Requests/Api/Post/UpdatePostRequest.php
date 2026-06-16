@@ -52,7 +52,6 @@ class UpdatePostRequest extends FormRequest
                 Rule::in(array_column(ContentType::cases(), 'value')),
                 new ContentTypeMatchesPostPlatform,
             ],
-            'platforms.*.meta' => ['nullable', 'array'],
             ...PostPlatformMetaRules::rules(),
             'scheduled_at' => [
                 'nullable',

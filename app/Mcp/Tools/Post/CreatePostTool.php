@@ -38,7 +38,6 @@ class CreatePostTool extends Tool
                     ->where('is_active', true),
             ],
             'platforms.*.content_type' => ['required', 'string', Rule::in(array_column(ContentType::cases(), 'value')), new ContentTypeMatchesPlatform],
-            'platforms.*.meta' => ['sometimes', 'array'],
             ...PostPlatformMetaRules::rules(),
         ]);
 

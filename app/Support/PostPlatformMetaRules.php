@@ -32,14 +32,16 @@ class PostPlatformMetaRules
     ];
 
     /**
-     * Validation rules for the `platforms.*.meta.*` keys. The caller keeps its own
-     * `platforms.*.meta` (array) parent rule; these are the per-platform sub-keys.
+     * Validation rules for `platforms.*.meta` and all its per-platform sub-keys.
+     * Spread into a FormRequest/MCP tool rule set as the complete meta contract.
      *
      * @return array<string, mixed>
      */
     public static function rules(): array
     {
         return [
+            'platforms.*.meta' => ['sometimes', 'nullable', 'array'],
+
             // Instagram / Facebook
             'platforms.*.meta.aspect_ratio' => ['sometimes', 'nullable', 'string', Rule::enum(AspectRatio::class)],
 

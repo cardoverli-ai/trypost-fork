@@ -70,7 +70,6 @@ class UpdatePostRequest extends FormRequest
                 Rule::in(array_column(ContentType::cases(), 'value')),
                 Rule::when($enforcesMediaCompatibility, [new ContentTypeCompatibleWithMedia]),
             ],
-            'platforms.*.meta' => ['nullable', 'array'],
             ...PostPlatformMetaRules::rules(),
             'label_ids' => ['sometimes', 'array'],
             'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $this->user()->currentWorkspace->id)],

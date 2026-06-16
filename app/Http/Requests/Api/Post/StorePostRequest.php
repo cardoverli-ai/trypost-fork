@@ -50,7 +50,6 @@ class StorePostRequest extends FormRequest
                 Rule::in(array_column(ContentType::cases(), 'value')),
                 new ContentTypeMatchesPlatform,
             ],
-            'platforms.*.meta' => ['sometimes', 'nullable', 'array'],
             ...PostPlatformMetaRules::rules(),
             'scheduled_at' => ['nullable', 'date', 'after:now'],
             'label_ids' => ['sometimes', 'array'],

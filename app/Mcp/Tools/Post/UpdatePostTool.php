@@ -49,7 +49,6 @@ class UpdatePostTool extends Tool
                 Rule::exists('post_platforms', 'id')->where('post_id', $post->id),
             ],
             'platforms.*.content_type' => ['sometimes', 'string', Rule::in(array_column(ContentType::cases(), 'value')), new ContentTypeMatchesPostPlatform],
-            'platforms.*.meta' => ['sometimes', 'array'],
             ...PostPlatformMetaRules::rules(),
         ]);
 
