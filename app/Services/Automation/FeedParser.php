@@ -6,6 +6,7 @@ namespace App\Services\Automation;
 
 use SimplePie\Item;
 use SimplePie\SimplePie;
+use Throwable;
 
 /**
  * Parses an RSS 2.0 / Atom 1.0 / RDF feed body into normalized item arrays.
@@ -52,19 +53,24 @@ class FeedParser
     ];
 
     /**
-     * @return list<array<string, mixed>>|null Null when the body is not a valid feed.
+     * @return list<array<string, mixed>>|null Null when the body is not a usable feed
+     *                                         (invalid XML, or any parse failure).
      */
     public function parse(string $body): ?array
     {
-        $feed = new SimplePie;
-        $feed->enable_cache(false);
-        $feed->set_raw_data($body);
+        try {
+            $feed = new SimplePie;
+            $feed->enable_cache(false);
+            $feed->set_raw_data($body);
 
-        if (! @$feed->init()) {
+            if (! @$feed->init()) {
+                return null;
+            }
+
+            return array_map(fn (Item $item): array => $this->normalize($item), $feed->get_items());
+        } catch (Throwable) {
             return null;
         }
-
-        return array_map(fn (Item $item): array => $this->normalize($item), $feed->get_items());
     }
 
     /**
