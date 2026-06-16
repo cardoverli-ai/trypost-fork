@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace App\Http\Requests\Api\Post;
 
 use App\Enums\Post\Status;
-use App\Enums\PostPlatform\AspectRatio;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
 use App\Models\Post;
 use App\Models\PostPlatform;
 use App\Rules\ContentFitsPlatformLimits;
 use App\Rules\ContentTypeMatchesPostPlatform;
+use App\Support\PostPlatformMetaRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdatePostRequest extends FormRequest
 {
@@ -51,8 +52,7 @@ class UpdatePostRequest extends FormRequest
                 Rule::in(array_column(ContentType::cases(), 'value')),
                 new ContentTypeMatchesPostPlatform,
             ],
-            'platforms.*.meta' => ['nullable', 'array'],
-            'platforms.*.meta.aspect_ratio' => ['sometimes', 'nullable', 'string', Rule::enum(AspectRatio::class)],
+            ...PostPlatformMetaRules::rules(),
             'scheduled_at' => [
                 'nullable',
                 'date',
@@ -64,6 +64,23 @@ class UpdatePostRequest extends FormRequest
             'label_ids' => ['sometimes', 'array'],
             'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $this->user()->currentWorkspace->id)],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if (! in_array($this->input('status'), [Status::Scheduled->value, Status::Publishing->value], true)) {
+                return;
+            }
+
+            $platformsById = $this->resolveSelectedPlatforms();
+
+            PostPlatformMetaRules::addRequiredOnPublishErrors(
+                $validator,
+                $this->input('platforms', []),
+                fn ($platform) => $platformsById[data_get($platform, 'id')] ?? null,
+            );
+        });
     }
 
     /**

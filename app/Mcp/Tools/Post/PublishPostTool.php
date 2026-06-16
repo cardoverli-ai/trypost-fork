@@ -9,6 +9,7 @@ use App\Enums\Post\Action as PostAction;
 use App\Enums\Post\Status;
 use App\Http\Resources\Api\PostResource;
 use App\Models\Post;
+use App\Support\PostPlatformMetaRules;
 use App\Support\PostStatusRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -40,6 +41,8 @@ class PublishPostTool extends Tool
         if (! $post->postPlatforms()->where('enabled', true)->exists()) {
             return Response::error('Post has no enabled platforms. Use update-post-tool to enable at least one platform first.');
         }
+
+        PostPlatformMetaRules::assertStoredPostPublishable($post);
 
         $scheduledAt = data_get($validated, 'scheduled_at');
 

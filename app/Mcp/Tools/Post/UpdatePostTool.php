@@ -7,11 +7,11 @@ namespace App\Mcp\Tools\Post;
 use App\Actions\Post\UpdatePost;
 use App\Enums\Post\Action as PostAction;
 use App\Enums\Post\Status;
-use App\Enums\PostPlatform\AspectRatio;
 use App\Enums\PostPlatform\ContentType;
 use App\Http\Resources\Api\PostResource;
 use App\Models\Post;
 use App\Rules\ContentTypeMatchesPostPlatform;
+use App\Support\PostPlatformMetaRules;
 use App\Support\PostStatusRules;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Validation\Rule;
@@ -49,8 +49,7 @@ class UpdatePostTool extends Tool
                 Rule::exists('post_platforms', 'id')->where('post_id', $post->id),
             ],
             'platforms.*.content_type' => ['sometimes', 'string', Rule::in(array_column(ContentType::cases(), 'value')), new ContentTypeMatchesPostPlatform],
-            'platforms.*.meta' => ['sometimes', 'array'],
-            'platforms.*.meta.aspect_ratio' => ['sometimes', 'nullable', 'string', Rule::enum(AspectRatio::class)],
+            ...PostPlatformMetaRules::rules(),
         ]);
 
         $payload = collect($validated)->except('post_id')->all();
@@ -84,7 +83,7 @@ class UpdatePostTool extends Tool
                 ->items($schema->object(fn ($p) => [
                     'id' => $p->string()->required()->description('UUID of the post_platform row (from get-post-tool / list-posts-tool).'),
                     'content_type' => $p->string()->description('New content_type for this platform.'),
-                    'meta' => $p->object()->description('Per-platform metadata override (e.g. aspect_ratio, board_id for Pinterest).'),
+                    'meta' => $p->object()->description('Per-platform metadata override. Instagram/Facebook: aspect_ratio. TikTok: privacy_level (required to publish) + flags. Pinterest: board_id (required to publish). Discord: channel_id (required to publish), mentions, embeds. Merged with existing meta.'),
                 ]))
                 ->description('Platforms to enable for publishing. Any platform NOT listed will be disabled. Pass an empty array to disable all.'),
         ];

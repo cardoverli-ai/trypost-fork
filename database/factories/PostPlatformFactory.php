@@ -155,6 +155,14 @@ class PostPlatformFactory extends Factory
         ]);
     }
 
+    public function discord(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'platform' => Platform::Discord,
+            'content_type' => ContentType::DiscordMessage,
+        ]);
+    }
+
     public function facebookReel(): static
     {
         return $this->state(fn (array $attributes) => [

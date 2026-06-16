@@ -6,11 +6,11 @@ namespace App\Http\Requests\App\Post;
 
 use App\Enums\Media\Source;
 use App\Enums\Post\Status;
-use App\Enums\PostPlatform\AspectRatio;
 use App\Enums\PostPlatform\ContentType;
 use App\Enums\SocialAccount\Platform;
 use App\Rules\ContentFitsPlatformLimits;
 use App\Rules\ContentTypeCompatibleWithMedia;
+use App\Support\PostPlatformMetaRules;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
@@ -70,18 +70,7 @@ class UpdatePostRequest extends FormRequest
                 Rule::in(array_column(ContentType::cases(), 'value')),
                 Rule::when($enforcesMediaCompatibility, [new ContentTypeCompatibleWithMedia]),
             ],
-            'platforms.*.meta' => ['nullable', 'array'],
-            'platforms.*.meta.aspect_ratio' => ['sometimes', 'nullable', 'string', Rule::enum(AspectRatio::class)],
-            'platforms.*.meta.privacy_level' => ['sometimes', 'nullable', 'string', Rule::in(['PUBLIC_TO_EVERYONE', 'MUTUAL_FOLLOW_FRIENDS', 'FOLLOWER_OF_CREATOR', 'SELF_ONLY'])],
-            'platforms.*.meta.auto_add_music' => ['sometimes', 'boolean'],
-            'platforms.*.meta.allow_comments' => ['sometimes', 'boolean'],
-            'platforms.*.meta.allow_duet' => ['sometimes', 'boolean'],
-            'platforms.*.meta.allow_stitch' => ['sometimes', 'boolean'],
-            'platforms.*.meta.is_aigc' => ['sometimes', 'boolean'],
-            'platforms.*.meta.disclose' => ['sometimes', 'boolean'],
-            'platforms.*.meta.brand_content_toggle' => ['sometimes', 'boolean'],
-            'platforms.*.meta.brand_organic_toggle' => ['sometimes', 'boolean'],
-            'platforms.*.meta.board_id' => ['sometimes', 'nullable', 'string'],
+            ...PostPlatformMetaRules::rules(),
             'label_ids' => ['sometimes', 'array'],
             'label_ids.*' => ['uuid', Rule::exists('workspace_labels', 'id')->where('workspace_id', $this->user()->currentWorkspace->id)],
         ];
@@ -102,24 +91,11 @@ class UpdatePostRequest extends FormRequest
                 ->whereIn('id', $ids)
                 ->pluck('platform', 'id');
 
-            foreach ($platforms as $i => $platform) {
-                $platformEnum = $platformsById[data_get($platform, 'id')] ?? null;
-                if ($platformEnum === Platform::TikTok
-                    && blank(data_get($platform, 'meta.privacy_level'))) {
-                    $validator->errors()->add(
-                        "platforms.{$i}.meta.privacy_level",
-                        trans('posts.form.tiktok.privacy_required'),
-                    );
-                }
-
-                if ($platformEnum === Platform::Pinterest
-                    && blank(data_get($platform, 'meta.board_id'))) {
-                    $validator->errors()->add(
-                        "platforms.{$i}.meta.board_id",
-                        trans('posts.form.pinterest.board_required'),
-                    );
-                }
-            }
+            PostPlatformMetaRules::addRequiredOnPublishErrors(
+                $validator,
+                $platforms,
+                fn ($platform) => $platformsById[data_get($platform, 'id')] ?? null,
+            );
         });
     }
 
