@@ -188,3 +188,41 @@ test('loading page rejects non-uuid creation ids', function () {
         ->get(route('app.posts.ai.loading', 'not-a-uuid'))
         ->assertStatus(Response::HTTP_NOT_FOUND);
 });
+
+it('defaults to the image_card template when none is given', function () {
+    Bus::fake();
+
+    $this->actingAs($this->user)
+        ->postJson(route('app.posts.ai.create'), [
+            'format' => 'instagram_feed',
+            'prompt' => 'a post about coffee',
+        ])
+        ->assertAccepted();
+
+    Bus::assertDispatched(StreamPostCreation::class, fn ($job) => $job->template === 'image_card');
+});
+
+it('rejects an unknown template', function () {
+    Bus::fake();
+
+    $this->actingAs($this->user)
+        ->postJson(route('app.posts.ai.create'), [
+            'format' => 'instagram_feed',
+            'prompt' => 'x',
+            'template' => 'bogus',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['template']);
+});
+
+it('requires social_account_id when the template needsAccount', function () {
+    Bus::fake();
+
+    $this->actingAs($this->user)
+        ->postJson(route('app.posts.ai.create'), [
+            'format' => 'instagram_feed',
+            'prompt' => 'a post about coffee',
+            'template' => 'image_card',
+        ])
+        ->assertAccepted();
+});
