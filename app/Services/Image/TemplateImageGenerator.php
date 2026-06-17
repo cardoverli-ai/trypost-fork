@@ -625,23 +625,21 @@ class TemplateImageGenerator
         $nameX = $avatarX + $avatarSize + 16;
         $nameY = $avatarY + 4;
 
-        if ($fontBold) {
-            $canvas->text($socialAccount->display_name ?? '', $nameX, $nameY, function (FontFactory $font) use ($fontBold, $nameSize) {
-                $font->filename($fontBold);
-                $font->size($nameSize);
-                $font->color('#0f1419');
-                $font->align('left', 'top');
-            });
+        $displayNameText = $socialAccount->display_name ?? '';
+        $nameBox = $fontBold ? imagettfbbox($nameSize, 0, $fontBold, $displayNameText) : [0, 0, 0, 0, 0, 0, 0, 0];
+        $nameWidth = abs($nameBox[2] - $nameBox[0]);
+        $nameAscent = (int) round(abs($nameBox[7]));
+        $nameBaselineY = $nameY + $nameAscent;
+
+        if ($fontBold && $displayNameText !== '') {
+            $this->drawTextAt($core, $displayNameText, $fontBold, $nameSize, '#0f1419', $nameX, $nameBaselineY);
         }
 
         $verifiedPath = public_path('images/ai-templates/verified.png');
-        if ($fontBold && file_exists($verifiedPath)) {
-            $displayNameText = $socialAccount->display_name ?? '';
-            $nameBox = $fontBold ? imagettfbbox($nameSize, 0, $fontBold, $displayNameText) : [0, 0, 0, 0, 0, 0, 0, 0];
-            $nameWidth = abs($nameBox[2] - $nameBox[0]);
-            $badgeSize = (int) round($nameSize * 1.1);
-            $badgeX = $nameX + $nameWidth + 6;
-            $badgeY = $nameY + (int) round(($nameSize - $badgeSize) / 2);
+        if ($fontBold && $displayNameText !== '' && file_exists($verifiedPath)) {
+            $badgeSize = (int) round($nameSize * 1.15);
+            $badgeX = $nameX + $nameWidth + 8;
+            $badgeY = $nameY + (int) round(($nameAscent - $badgeSize) / 2);
             $verifiedSrc = @imagecreatefrompng($verifiedPath);
             if ($verifiedSrc) {
                 $verifiedResized = imagecreatetruecolor($badgeSize, $badgeSize);
@@ -657,14 +655,12 @@ class TemplateImageGenerator
             }
         }
 
-        $handleY = $nameY + (int) round($nameSize * 1.35);
-        if ($fontLight) {
-            $canvas->text('@'.($socialAccount->username ?? ''), $nameX, $handleY, function (FontFactory $font) use ($fontLight, $handleSize) {
-                $font->filename($fontLight);
-                $font->size($handleSize);
-                $font->color('#536471');
-                $font->align('left', 'top');
-            });
+        $handleText = '@'.($socialAccount->username ?? '');
+        $handleBox = $fontLight ? imagettfbbox($handleSize, 0, $fontLight, $handleText) : [0, 0, 0, 0, 0, 0, 0, 0];
+        $handleAscent = (int) round(abs($handleBox[7]));
+        $handleY = $nameY + (int) round($nameSize * 1.4);
+        if ($fontLight && $socialAccount->username) {
+            $this->drawTextAt($core, $handleText, $fontLight, $handleSize, '#536471', $nameX, $handleY + $handleAscent);
         }
 
         $bodyStartY = $cardY + $headerH + 8;
