@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Ai\Templates;
 
+use App\Enums\Ai\ContentStyle;
 use InvalidArgumentException;
 
 class AiTemplateRegistry
@@ -30,15 +31,23 @@ class AiTemplateRegistry
         return array_map(fn (AiContentTemplate $t) => $t->key(), $this->all());
     }
 
-    public function find(string $key): AiContentTemplate
+    /** @return array<int, ContentStyle> */
+    public function styles(): array
     {
+        return ContentStyle::cases();
+    }
+
+    public function find(ContentStyle|string $style): AiContentTemplate
+    {
+        $value = $style instanceof ContentStyle ? $style->value : $style;
+
         foreach ($this->all() as $template) {
-            if ($template->key() === $key) {
+            if ($template->key() === $value) {
                 return $template;
             }
         }
 
-        throw new InvalidArgumentException("Unknown AI content template: {$key}");
+        throw new InvalidArgumentException("Unknown AI content template: {$value}");
     }
 
     public function default(): AiContentTemplate

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Ai\Templates\TemplateContext;
 use App\Ai\Templates\TweetCardTemplate;
+use App\Enums\Ai\ContentStyle;
 use App\Models\Workspace;
 use Illuminate\JsonSchema\JsonSchemaTypeFactory;
 
@@ -13,7 +14,8 @@ test('tweet card template identity', function () {
     $singleContext = new TemplateContext($workspace, null, 'x_post', 1, false);
     $carouselContext = new TemplateContext($workspace, null, 'instagram_carousel', 2, true);
 
-    expect($t->key())->toBe('tweet_card')
+    expect($t->style())->toBe(ContentStyle::TweetCard)
+        ->and($t->key())->toBe('tweet_card')
         ->and($t->needsAccount())->toBeTrue()
         ->and($t->generatorFormat())->toBe('tweet_card')
         ->and($t->promptView($singleContext))->toBe('prompts.post_content.tweet_card')

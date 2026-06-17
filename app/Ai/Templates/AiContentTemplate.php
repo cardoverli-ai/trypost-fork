@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Ai\Templates;
 
+use App\Enums\Ai\ContentStyle;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 
 interface AiContentTemplate
 {
+    /** The typed enum case for this style. */
+    public function style(): ContentStyle;
+
     /** Stable key used in the request + registry, e.g. 'image_card'. */
     public function key(): string;
 

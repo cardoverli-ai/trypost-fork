@@ -4,35 +4,41 @@ declare(strict_types=1);
 
 namespace App\Ai\Templates;
 
+use App\Enums\Ai\ContentStyle;
 use App\Enums\PostPlatform\ContentType;
 use App\Services\Image\PostImagePipeline;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 
 class TweetCardTemplate implements AiContentTemplate
 {
+    public function style(): ContentStyle
+    {
+        return ContentStyle::TweetCard;
+    }
+
     public function key(): string
     {
-        return 'tweet_card';
+        return $this->style()->value;
     }
 
     public function name(): string
     {
-        return 'posts.ai.templates.tweet_card.name';
+        return $this->style()->label();
     }
 
     public function description(): string
     {
-        return 'posts.ai.templates.tweet_card.description';
+        return $this->style()->description();
     }
 
     public function previewAsset(): string
     {
-        return '/images/ai-templates/tweet-card.png';
+        return $this->style()->previewAsset();
     }
 
     public function needsAccount(): bool
     {
-        return true;
+        return $this->style()->needsAccount();
     }
 
     /** @return array<int, string> */

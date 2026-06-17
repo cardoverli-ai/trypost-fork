@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Ai\Templates;
 
 use App\Ai\Templates\Concerns\ResolvesContentType;
+use App\Enums\Ai\ContentStyle;
 use App\Enums\PostPlatform\ContentType;
 use App\Services\Image\PostImagePipeline;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -13,29 +14,34 @@ class ImageCardTemplate implements AiContentTemplate
 {
     use ResolvesContentType;
 
+    public function style(): ContentStyle
+    {
+        return ContentStyle::ImageCard;
+    }
+
     public function key(): string
     {
-        return 'image_card';
+        return $this->style()->value;
     }
 
     public function name(): string
     {
-        return 'posts.ai.templates.image_card.name';
+        return $this->style()->label();
     }
 
     public function description(): string
     {
-        return 'posts.ai.templates.image_card.description';
+        return $this->style()->description();
     }
 
     public function previewAsset(): string
     {
-        return '/images/ai-templates/image-card.png';
+        return $this->style()->previewAsset();
     }
 
     public function needsAccount(): bool
     {
-        return false;
+        return $this->style()->needsAccount();
     }
 
     public function supportedFormats(): array

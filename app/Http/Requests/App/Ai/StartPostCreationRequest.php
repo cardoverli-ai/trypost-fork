@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\App\Ai;
 
-use App\Ai\Templates\AiTemplateRegistry;
+use App\Enums\Ai\ContentStyle;
 use App\Enums\PostPlatform\ContentType;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -35,21 +35,17 @@ class StartPostCreationRequest extends FormRequest
             'image_count' => ['nullable', 'integer', 'min:0', 'max:10'],
             'prompt' => ['required', 'string', 'max:2000'],
             'date' => ['nullable', 'date_format:Y-m-d'],
-            'template' => ['sometimes', 'string', Rule::in(app(AiTemplateRegistry::class)->keys())],
+            'template' => ['sometimes', 'string', Rule::enum(ContentStyle::class)],
         ];
     }
 
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
-            $key = (string) $this->input('template', 'image_card');
-            $registry = app(AiTemplateRegistry::class);
+            $style = ContentStyle::tryFrom((string) $this->input('template', ContentStyle::default()->value))
+                ?? ContentStyle::default();
 
-            if (! in_array($key, $registry->keys(), true)) {
-                return;
-            }
-
-            if ($registry->find($key)->needsAccount() && blank($this->input('social_account_id'))) {
+            if ($style->needsAccount() && blank($this->input('social_account_id'))) {
                 $validator->errors()->add('social_account_id', trans('validation.required', ['attribute' => 'social account']));
             }
         });

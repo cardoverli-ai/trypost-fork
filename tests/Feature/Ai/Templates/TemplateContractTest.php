@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Ai\Templates\ImageCardTemplate;
 use App\Ai\Templates\TemplateContext;
+use App\Enums\Ai\ContentStyle;
 use App\Models\Workspace;
 use Illuminate\JsonSchema\JsonSchemaTypeFactory;
 
@@ -12,7 +13,8 @@ test('image card template exposes its identity', function () {
     $workspace = Workspace::factory()->create();
     $context = new TemplateContext($workspace, null, 'instagram_feed', 0, false);
 
-    expect($t->key())->toBe('image_card')
+    expect($t->style())->toBe(ContentStyle::ImageCard)
+        ->and($t->key())->toBe('image_card')
         ->and($t->needsAccount())->toBeFalse()
         ->and($t->generatorFormat())->toBe('single')
         ->and($t->promptView($context))->toBe('prompts.post_content.generator')
