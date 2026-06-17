@@ -590,8 +590,6 @@ class TemplateImageGenerator
         $bodyLineHeight = 1.55;
         $paragraphGap = (int) round($bodySize * $bodyLineHeight * 0.6);
 
-        $textMaxWidth = $cardW - 2 * $cardPadding - $avatarSize - 24;
-
         $paragraphs = array_filter(array_map('trim', explode("\n\n", $tweetText)), fn ($p) => $p !== '');
         $allBodyLines = [];
         foreach ($paragraphs as $i => $para) {

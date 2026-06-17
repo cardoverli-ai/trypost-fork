@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace App\Ai\Templates;
 
-use App\Ai\Templates\Concerns\ResolvesContentType;
 use App\Enums\PostPlatform\ContentType;
 use App\Services\Image\PostImagePipeline;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 
 class CarouselTemplate implements AiContentTemplate
 {
-    use ResolvesContentType;
-
     public function key(): string
     {
         return 'carousel';
@@ -74,11 +71,6 @@ class CarouselTemplate implements AiContentTemplate
                 ->description("Exactly {$slideCount} slides for the carousel, in order. First slide must have role `hook`, last slide must have role `cta`.")
                 ->required(),
         ];
-    }
-
-    public function humanizableFields(): array
-    {
-        return ['caption' => 'caption'];
     }
 
     /**

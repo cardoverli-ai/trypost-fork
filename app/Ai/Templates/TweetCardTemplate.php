@@ -63,12 +63,6 @@ class TweetCardTemplate implements AiContentTemplate
         ];
     }
 
-    /** @return array<string, string> */
-    public function humanizableFields(): array
-    {
-        return ['tweet_text' => 'tweet_text'];
-    }
-
     /**
      * @param  array<string, mixed>  $structured
      */

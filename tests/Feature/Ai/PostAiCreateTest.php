@@ -215,7 +215,7 @@ it('rejects an unknown template', function () {
         ->assertJsonValidationErrors(['template']);
 });
 
-it('requires social_account_id when the template needsAccount', function () {
+it('allows image_card without a social account', function () {
     Bus::fake();
 
     $this->actingAs($this->user)
@@ -225,4 +225,19 @@ it('requires social_account_id when the template needsAccount', function () {
             'template' => 'image_card',
         ])
         ->assertAccepted();
+});
+
+it('requires social_account_id when the template needsAccount', function () {
+    Bus::fake();
+
+    $this->actingAs($this->user)
+        ->postJson(route('app.posts.ai.create'), [
+            'format' => 'x_post',
+            'prompt' => 'a punchy take on productivity',
+            'template' => 'tweet_card',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['social_account_id']);
+
+    Bus::assertNotDispatched(StreamPostCreation::class);
 });

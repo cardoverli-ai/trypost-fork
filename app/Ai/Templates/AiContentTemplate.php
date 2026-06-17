@@ -44,14 +44,6 @@ interface AiContentTemplate
     public function schema(JsonSchema $schema, TemplateContext $context): array;
 
     /**
-     * Text fields (by structured-output key) the humanizer should rewrite.
-     * Empty = skip humanization.
-     *
-     * @return array<string, string>
-     */
-    public function humanizableFields(): array;
-
-    /**
      * Build the post from the (humanized) structured output.
      *
      * @param  array<string, mixed>  $structured

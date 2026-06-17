@@ -62,15 +62,6 @@ class ImageCardTemplate implements AiContentTemplate
         ];
     }
 
-    public function humanizableFields(): array
-    {
-        return [
-            'content' => 'content',
-            'image_title' => 'image_title',
-            'image_body' => 'image_body',
-        ];
-    }
-
     /**
      * @param  array<string, mixed>  $structured
      */

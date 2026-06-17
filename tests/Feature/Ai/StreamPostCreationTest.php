@@ -102,7 +102,7 @@ test('tweet_card template stores the tweet_text as post content and attaches a m
         userId: $this->user->id,
         creationId: (string) Str::uuid(),
         workspaceId: $this->workspace->id,
-        format: 'x_twitter',
+        format: 'x_post',
         socialAccountId: $this->account->id,
         imageCount: 1,
         prompt: 'A punchy take on productivity',
@@ -113,6 +113,10 @@ test('tweet_card template stores the tweet_text as post content and attaches a m
 
     expect($post->content)->toBe('Hello world\n\nSecond para.')
         ->and($post->media)->toHaveCount(1);
+
+    $platform = PostPlatform::where('social_account_id', $this->account->id)->firstOrFail();
+
+    expect($platform->content_type)->toBe(ContentType::XPost);
 });
 
 test('the humanizer is given the same platform context as the generator so the rewrite honours the character cap', function () {
