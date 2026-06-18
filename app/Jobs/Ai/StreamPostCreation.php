@@ -7,6 +7,11 @@ namespace App\Jobs\Ai;
 use App\Actions\Post\CreatePost;
 use App\Ai\Agents\PostContentGenerator;
 use App\Ai\Agents\PostContentHumanizer;
+use App\Ai\Templates\AiTemplateRegistry;
+use App\Ai\Templates\GeneratedPost;
+use App\Ai\Templates\TemplateContext;
+use App\Enums\Ai\ContentStyle;
+use App\Enums\Ai\GeneratorFormat;
 use App\Enums\Notification\Channel as NotificationChannel;
 use App\Enums\Notification\Type as NotificationType;
 use App\Enums\PostPlatform\ContentType;
@@ -17,7 +22,6 @@ use App\Models\SocialAccount;
 use App\Models\User;
 use App\Models\Workspace;
 use App\Services\Ai\RecordAiUsage;
-use App\Services\Image\PostImagePipeline;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -38,6 +42,7 @@ class StreamPostCreation implements ShouldQueue
         public int $imageCount,
         public string $prompt,
         public ?string $date = null,
+        public string $template = 'image_card',
     ) {
         $this->onQueue('ai');
     }
@@ -47,16 +52,27 @@ class StreamPostCreation implements ShouldQueue
         $workspace = Workspace::findOrFail($this->workspaceId);
         $socialAccount = $this->socialAccountId ? SocialAccount::find($this->socialAccountId) : null;
 
-        $isCarousel = $this->format === ContentType::CAROUSEL_FORMAT;
-        $agentFormat = $isCarousel ? 'carousel' : 'single';
+        $style = app(AiTemplateRegistry::class)->find($this->template);
 
+        $isCarousel = $this->format === ContentType::CAROUSEL_FORMAT;
+        $agentFormat = $isCarousel ? GeneratorFormat::Carousel : GeneratorFormat::Single;
         $slideCount = $isCarousel && $this->imageCount > 0 ? $this->imageCount : 1;
+
+        $context = new TemplateContext(
+            workspace: $workspace,
+            socialAccount: $socialAccount,
+            format: $this->format,
+            imageCount: $this->imageCount,
+            isCarousel: $isCarousel,
+        );
 
         $agent = new PostContentGenerator(
             workspace: $workspace,
             format: $agentFormat,
             slideCount: $slideCount,
             platformContext: $this->format,
+            template: $style,
+            templateContext: $context,
         );
 
         try {
@@ -72,18 +88,13 @@ class StreamPostCreation implements ShouldQueue
                 metadata: ['agent' => 'post_generator', 'format' => $this->format],
             );
 
-            // StructuredAgentResponse implements ArrayAccess: access via $response['key']
             $structured = $response->structured ?? [];
 
-            // Second pass: rewrite human-readable text to remove AI-tells. Image
-            // keywords pass through untouched (they need to stay in English).
-            $structured = $this->humanize($workspace, $structured, $isCarousel ? 'carousel' : 'single');
+            $structured = $this->humanize($workspace, $structured, $agentFormat, $style->style());
 
-            if ($isCarousel) {
-                $this->handleCarousel($workspace, $socialAccount, $structured);
-            } else {
-                $this->handleSingle($workspace, $socialAccount, $structured);
-            }
+            $generated = $style->assemble($structured, $context);
+            $post = $this->createPostFromGenerated($workspace, $generated, $socialAccount);
+            $this->notifyReady($workspace, $post);
         } catch (\Throwable $e) {
             Log::error('StreamPostCreation failed', [
                 'creation_id' => $this->creationId,
@@ -97,19 +108,6 @@ class StreamPostCreation implements ShouldQueue
     }
 
     /**
-     * The stored content type for the requested generation format. The carousel
-     * generation format is persisted as an Instagram feed post.
-     */
-    private function resolvedContentType(): ?ContentType
-    {
-        if ($this->format === ContentType::CAROUSEL_FORMAT) {
-            return ContentType::InstagramFeed;
-        }
-
-        return ContentType::tryFrom($this->format);
-    }
-
-    /**
      * Run the structured generator output through the humanizer pass and merge
      * the humanized text fields back over the original structure (preserving
      * image_keywords and slide order/count). Failures are logged and the
@@ -119,10 +117,14 @@ class StreamPostCreation implements ShouldQueue
      * @param  array<string, mixed>  $structured
      * @return array<string, mixed>
      */
-    private function humanize(Workspace $workspace, array $structured, string $format): array
+    private function humanize(Workspace $workspace, array $structured, GeneratorFormat $format, ContentStyle $style): array
     {
+        if (! $style->humanizes()) {
+            return $structured;
+        }
+
         try {
-            $input = $format === 'carousel'
+            $input = $format->isCarousel()
                 ? [
                     'caption' => data_get($structured, 'caption', ''),
                     'slides' => array_map(
@@ -150,7 +152,7 @@ class StreamPostCreation implements ShouldQueue
                 provider: (string) config('ai.default'),
                 model: (string) config('ai.default_text_model'),
                 userId: $this->userId,
-                metadata: ['agent' => 'post_humanizer', 'format' => $format],
+                metadata: ['agent' => 'post_humanizer', 'format' => $format->value],
             );
         } catch (\Throwable $e) {
             Log::warning('PostContentHumanizer failed, using generator output as-is', [
@@ -161,7 +163,7 @@ class StreamPostCreation implements ShouldQueue
             return $structured;
         }
 
-        if ($format === 'carousel') {
+        if ($format->isCarousel()) {
             $structured['caption'] = data_get($humanized, 'caption', $structured['caption'] ?? '');
             $originalSlides = $structured['slides'] ?? [];
             $humanizedSlides = data_get($humanized, 'slides', []);
@@ -183,80 +185,28 @@ class StreamPostCreation implements ShouldQueue
         return $structured;
     }
 
-    private function handleCarousel(Workspace $workspace, ?SocialAccount $socialAccount, array $structured): void
-    {
-        $caption = (string) data_get($structured, 'caption', '');
-
-        $media = [];
-
-        if ($socialAccount) {
-            $media = app(PostImagePipeline::class)->forCarousel(
-                workspace: $workspace,
-                account: $socialAccount,
-                structured: $structured,
-                contentType: $this->resolvedContentType(),
-            );
-        }
-
-        $post = $this->createPost($workspace, $caption, $media, $socialAccount);
-
-        $this->notifyReady($workspace, $post);
-    }
-
-    /**
-     * @param  array<string, mixed>  $structured
-     */
-    private function handleSingle(Workspace $workspace, ?SocialAccount $socialAccount, array $structured): void
-    {
-        $contentType = ContentType::tryFrom($this->format);
-        $supportsCaption = $contentType?->supportsCaption() ?? true;
-
-        $rawContent = (string) data_get($structured, 'content', data_get($structured, 'text', ''));
-
-        $media = [];
-
-        if ($this->imageCount > 0 && $socialAccount) {
-            $media = app(PostImagePipeline::class)->forSingle(
-                workspace: $workspace,
-                account: $socialAccount,
-                structured: $structured,
-                contentType: $this->resolvedContentType(),
-            );
-        }
-
-        $caption = $supportsCaption ? $rawContent : '';
-        $post = $this->createPost($workspace, $caption, $media, $socialAccount);
-
-        $this->notifyReady($workspace, $post);
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $media
-     */
-    private function createPost(Workspace $workspace, string $content, array $media, ?SocialAccount $socialAccount): Post
+    private function createPostFromGenerated(Workspace $workspace, GeneratedPost $generated, ?SocialAccount $socialAccount): Post
     {
         $user = User::findOrFail($this->userId);
 
         $post = CreatePost::execute($workspace, $user, [
-            'content' => $content,
-            'media' => $media,
+            'content' => $generated->content,
+            'media' => $generated->media,
             'date' => $this->date,
         ]);
 
-        $contentType = $this->resolvedContentType();
-
-        if ($contentType && $socialAccount) {
-            $aspectRatio = $this->aspectRatioFor($contentType);
+        if ($generated->contentType && $socialAccount) {
+            $aspectRatio = $this->aspectRatioFor($generated->contentType);
 
             $post->postPlatforms()
                 ->where('social_account_id', $socialAccount->id)
-                ->each(function ($platform) use ($aspectRatio, $contentType): void {
+                ->each(function ($platform) use ($aspectRatio, $generated): void {
                     $meta = $platform->meta ?? [];
                     if ($aspectRatio !== null) {
                         $meta['aspect_ratio'] = $aspectRatio;
                     }
                     $platform->meta = $meta;
-                    $platform->content_type = $contentType->value;
+                    $platform->content_type = $generated->contentType->value;
                     $platform->enabled = true;
                     $platform->save();
                 });

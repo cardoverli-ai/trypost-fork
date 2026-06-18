@@ -260,6 +260,24 @@ return [
                 'not_ai_media' => 'Solo se puede regenerar contenido generado por IA.',
             ],
         ],
+        'templates' => [
+            'image_card' => [
+                'name' => 'Publicación con imagen',
+                'description' => 'Imagen con IA, titular y descripción.',
+            ],
+            'carousel' => [
+                'name' => 'Carrusel',
+                'description' => 'Carrusel de varias diapositivas con descripción.',
+            ],
+            'tweet_card' => [
+                'name' => 'Tarjeta de tweet',
+                'description' => 'Tu publicación con estilo de post de X/Twitter.',
+            ],
+            'tweet_card_image' => [
+                'name' => 'Tarjeta de tweet con foto',
+                'description' => 'Tu publicación como tarjeta de X/Twitter sobre una foto difuminada.',
+            ],
+        ],
     ],
 
     'show' => [
@@ -558,6 +576,7 @@ return [
         'ai_title' => 'Generar con IA',
         'ai_description' => 'Describe lo que quieres y la IA genera el contenido por ti.',
         'ai_configure_description' => 'Elige un formato y describe el post que quieres crear.',
+        'ai_pick_template_description' => 'Elige un estilo para tu post generado por IA.',
         'template_title' => 'Usar una plantilla',
         'template_description' => 'Elige una de nuestras plantillas y personalízala.',
 
@@ -569,6 +588,7 @@ return [
         'coming_soon' => 'Próximamente',
 
         'steps' => [
+            'template_picker_title' => 'Elige un estilo',
             'format_title' => 'Elige un formato',
             'format_description' => 'Selecciona el tipo de post que quieres crear.',
             'account_title' => 'Elige una cuenta',
@@ -605,6 +625,7 @@ return [
             'retry' => 'Intentar de nuevo',
             'no_platforms' => 'Sin cuentas conectadas',
             'connect_first' => 'Conecta al menos una cuenta social para usar la generación con IA.',
+            'no_account_for_template' => 'Conecta una cuenta compatible para usar esta plantilla.',
 
             'format' => [
                 'instagram_feed' => 'Post de Feed de Instagram',

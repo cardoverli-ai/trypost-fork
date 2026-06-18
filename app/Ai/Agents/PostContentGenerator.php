@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Ai\Agents;
 
 use App\Ai\Agents\Concerns\ResolvesPlatformCopyBudget;
+use App\Ai\Templates\AiContentTemplate;
+use App\Ai\Templates\TemplateContext;
+use App\Enums\Ai\GeneratorFormat;
 use App\Models\Workspace;
 use App\Services\Ai\TemplateContextResolver;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
@@ -23,10 +26,12 @@ class PostContentGenerator implements Agent, HasStructuredOutput
     public function __construct(
         public Workspace $workspace,
         public ?string $currentContent = null,
-        public string $format = 'single',
+        public GeneratorFormat $format = GeneratorFormat::Single,
         public int $slideCount = 1,
         public ?string $platformContext = null,
         public bool $applyBrandVoice = true,
+        public ?AiContentTemplate $template = null,
+        public ?TemplateContext $templateContext = null,
     ) {}
 
     public function instructions(): string
@@ -45,18 +50,24 @@ class PostContentGenerator implements Agent, HasStructuredOutput
                 ->all();
         }
 
-        // Two budgets: the platform's HARD cap (must never exceed — would break
-        // publishing) and the recommended SWEET SPOT length (what well-performing
-        // posts actually look like, way below the hard cap on most platforms).
         $budget = $this->platformCopyBudget($this->platformContext);
 
-        return view('prompts.post_content.generator', [
+        if ($this->template?->style()->isTweetCard()) {
+            $budget['hard_max_chars'] = 560;
+            $budget['target_chars'] = 280;
+        }
+
+        $view = $this->template !== null && $this->templateContext !== null
+            ? $this->template->promptView($this->templateContext)
+            : 'prompts.post_content.generator';
+
+        return view($view, [
             'brand_name' => $this->workspace->name ?? '',
             'brand_description' => $this->applyBrandVoice ? ($this->workspace->brand_description ?? '') : '',
             'brand_voice_traits' => $this->applyBrandVoice ? ($this->workspace->brand_voice_traits ?? []) : [],
             'content_language' => $this->workspace->content_language,
             'current_content' => $this->currentContent,
-            'format' => $this->format,
+            'format' => $this->format->value,
             'slide_count' => $this->slideCount,
             'examples' => $examples,
             'hard_max_chars' => $budget['hard_max_chars'],
@@ -67,7 +78,11 @@ class PostContentGenerator implements Agent, HasStructuredOutput
 
     public function schema(JsonSchema $schema): array
     {
-        if ($this->format === 'carousel') {
+        if ($this->template !== null && $this->templateContext !== null) {
+            return $this->template->schema($schema, $this->templateContext);
+        }
+
+        if ($this->format->isCarousel()) {
             return [
                 'caption' => $schema->string()->description('The Instagram caption for the carousel post.')->required(),
                 'slides' => $schema->array()
@@ -77,7 +92,7 @@ class PostContentGenerator implements Agent, HasStructuredOutput
                             ->description('The role of this slide in the carousel arc. First slide is `hook` (specific real problem). Last slide is `cta` (one specific next action). Middle slides are `development` (unfold the idea) or `proof` (concrete result, before/after, behind-the-scenes, real learning). For 4+ slides, at least one middle slide must be `proof`.')
                             ->required(),
                         'title' => $s->string()->description('Headline of the slide. Short, impactful.')->required(),
-                        'body' => $s->string()->description('Supporting text below the headline. 1-3 sentences.')->required(),
+                        'body' => $s->string()->description('Supporting body below the headline. 1-3 sentences.')->required(),
                         'image_keywords' => $s->array()->items($schema->string())->description('2-4 search keywords for Unsplash.')->required(),
                     ]))
                     ->min($this->slideCount)

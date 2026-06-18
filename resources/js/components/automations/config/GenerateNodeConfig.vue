@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { usePage } from '@inertiajs/vue3';
+import { trans } from 'laravel-vue-i18n';
 import { computed, ref, watch } from 'vue';
 
+import ContentStylePicker from '@/components/ai/ContentStylePicker.vue';
 import ChannelConfigurator from '@/components/ChannelConfigurator.vue';
 import CodeEditor from '@/components/CodeEditor.vue';
 import InputError from '@/components/InputError.vue';
@@ -48,7 +50,25 @@ interface GenerateConfig {
     prompt_template: string;
     use_brand_voice: boolean;
     use_brand_visuals: boolean;
+    style: string;
 }
+
+const CONTENT_STYLE_KEYS = ['image_card', 'tweet_card', 'tweet_card_image'] as const;
+
+const CONTENT_STYLE_PREVIEWS: Record<string, string> = {
+    image_card: '/images/ai-templates/image-card.png',
+    tweet_card: '/images/ai-templates/tweet-card.png',
+    tweet_card_image: '/images/ai-templates/tweet-card-image.png',
+};
+
+const contentStyles = computed(() =>
+    CONTENT_STYLE_KEYS.map((key) => ({
+        key,
+        preview: CONTENT_STYLE_PREVIEWS[key],
+        name: trans(`posts.ai.templates.${key}.name`),
+        description: trans(`posts.ai.templates.${key}.description`),
+    })),
+);
 
 const props = defineProps<{
     data: Record<string, unknown>;
@@ -143,6 +163,7 @@ const local = ref<GenerateConfig>({
     prompt_template: (props.data.prompt_template as string) ?? '',
     use_brand_voice: (props.data.use_brand_voice as boolean | undefined) ?? true,
     use_brand_visuals: (props.data.use_brand_visuals as boolean | undefined) ?? true,
+    style: (props.data.style as string) ?? 'image_card',
 });
 
 watch(local, (val) => emit('update', val), { deep: true });
@@ -280,6 +301,11 @@ const channels = computed<Channel[]>(() =>
                 @update:content-type="updateContentType"
                 @update:meta="updateMeta"
             />
+        </div>
+
+        <div class="space-y-2">
+            <Label class="text-sm font-bold">{{ $t('automations.config.generate.style') }}</Label>
+            <ContentStylePicker v-model="local.style" :styles="contentStyles" mini />
         </div>
 
         <div v-if="imageCountCap >= 1" class="space-y-2">

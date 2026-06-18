@@ -260,6 +260,24 @@ return [
                 'not_ai_media' => 'Only AI-generated media can be regenerated.',
             ],
         ],
+        'templates' => [
+            'image_card' => [
+                'name' => 'Image post',
+                'description' => 'AI image with a headline and caption.',
+            ],
+            'carousel' => [
+                'name' => 'Carousel',
+                'description' => 'Multi-slide carousel with a caption.',
+            ],
+            'tweet_card' => [
+                'name' => 'Tweet card',
+                'description' => 'Your post styled as an X/Twitter post.',
+            ],
+            'tweet_card_image' => [
+                'name' => 'Tweet card with photo',
+                'description' => 'Your post as an X/Twitter card over a blurred photo.',
+            ],
+        ],
     ],
 
     'show' => [
@@ -558,6 +576,7 @@ return [
         'ai_title' => 'Generate with AI',
         'ai_description' => 'Describe what you want and AI generates the content for you.',
         'ai_configure_description' => 'Pick a format and describe the post you want to create.',
+        'ai_pick_template_description' => 'Choose a style for your AI-generated post.',
         'template_title' => 'Use a template',
         'template_description' => 'Pick from our curated templates and customize.',
         'coming_soon' => 'Coming soon',
@@ -568,6 +587,7 @@ return [
         ],
 
         'steps' => [
+            'template_picker_title' => 'Choose a style',
             'format_title' => 'Choose a format',
             'format_description' => 'Select the type of post you want to create.',
             'account_title' => 'Choose an account',
@@ -604,6 +624,7 @@ return [
             'retry' => 'Try again',
             'no_platforms' => 'No connected accounts',
             'connect_first' => 'Connect at least one social account to use AI generation.',
+            'no_account_for_template' => 'Connect a compatible account to use this template.',
 
             'format' => [
                 'instagram_feed' => 'Instagram Feed Post',

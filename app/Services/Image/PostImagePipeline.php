@@ -81,6 +81,60 @@ class PostImagePipeline
     }
 
     /**
+     * Render a tweet-card image for the given text and return a one-element
+     * media-item array, or an empty array when the generator renders nothing.
+     *
+     * When $imageKeywords is non-null a blurred AI-photo background is used
+     * (tweet_card_image); null produces the solid brand-color background (tweet_card).
+     *
+     * @param  array<int, string>|null  $imageKeywords
+     * @return array<int, array<string, mixed>>
+     */
+    public function forTweetCard(Workspace $workspace, SocialAccount $account, string $tweetText, ?array $imageKeywords = null): array
+    {
+        $rendered = $this->generator->renderTweetCard($workspace, $account, $tweetText, $imageKeywords);
+
+        if (! $rendered) {
+            return [];
+        }
+
+        return [$this->buildAiMediaItem($workspace, $rendered)];
+    }
+
+    /**
+     * Render one tweet-card image per slide and return the media-item array.
+     * Slides that render nothing are skipped.
+     *
+     * Each entry in $slides is either a plain string (tweet text, solid background)
+     * or an array with keys `tweet_text` and optionally `image_keywords` (image bg).
+     *
+     * @param  array<int, string|array<string, mixed>>  $slides
+     * @return array<int, array<string, mixed>>
+     */
+    public function forTweetCardCarousel(Workspace $workspace, SocialAccount $account, array $slides): array
+    {
+        $media = [];
+
+        foreach ($slides as $slide) {
+            if (is_string($slide)) {
+                $tweetText = $slide;
+                $imageKeywords = null;
+            } else {
+                $tweetText = (string) data_get($slide, 'tweet_text', '');
+                $imageKeywords = data_get($slide, 'image_keywords');
+            }
+
+            $rendered = $this->generator->renderTweetCard($workspace, $account, $tweetText, $imageKeywords);
+
+            if ($rendered) {
+                $media[] = $this->buildAiMediaItem($workspace, $rendered);
+            }
+        }
+
+        return $media;
+    }
+
+    /**
      * Resolve the AI image dimensions for the given content type, falling back
      * to the generator defaults (4:5 portrait) when no content type is known.
      *

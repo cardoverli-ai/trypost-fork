@@ -260,6 +260,24 @@ return [
                 'not_ai_media' => 'Só é possível regenerar mídia gerada por IA.',
             ],
         ],
+        'templates' => [
+            'image_card' => [
+                'name' => 'Post com imagem',
+                'description' => 'Imagem com IA, título e legenda.',
+            ],
+            'carousel' => [
+                'name' => 'Carrossel',
+                'description' => 'Carrossel de vários slides com legenda.',
+            ],
+            'tweet_card' => [
+                'name' => 'Card de tweet',
+                'description' => 'Seu post no estilo de um post do X/Twitter.',
+            ],
+            'tweet_card_image' => [
+                'name' => 'Card de tweet com foto',
+                'description' => 'Seu post como card do X/Twitter sobre uma foto desfocada.',
+            ],
+        ],
     ],
 
     'show' => [
@@ -558,6 +576,7 @@ return [
         'ai_title' => 'Gerar com IA',
         'ai_description' => 'Descreva o que quer e a IA gera o conteúdo pra você.',
         'ai_configure_description' => 'Escolha o formato e descreva o post que quer criar.',
+        'ai_pick_template_description' => 'Escolha um estilo para o seu post gerado por IA.',
         'template_title' => 'Usar um template',
         'template_description' => 'Escolha um dos nossos templates e personalize.',
         'coming_soon' => 'Em breve',
@@ -568,6 +587,7 @@ return [
         ],
 
         'steps' => [
+            'template_picker_title' => 'Escolha um estilo',
             'format_title' => 'Escolha um formato',
             'format_description' => 'Selecione o tipo de post que deseja criar.',
             'account_title' => 'Escolha uma conta',
@@ -604,6 +624,7 @@ return [
             'retry' => 'Tentar novamente',
             'no_platforms' => 'Nenhuma conta conectada',
             'connect_first' => 'Conecte pelo menos uma conta social para usar a geração com IA.',
+            'no_account_for_template' => 'Conecte uma conta compatível para usar este template.',
 
             'format' => [
                 'instagram_feed' => 'Post no Feed do Instagram',

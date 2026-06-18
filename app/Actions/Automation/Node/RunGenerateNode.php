@@ -7,7 +7,11 @@ namespace App\Actions\Automation\Node;
 use App\Actions\Post\CreatePost;
 use App\Ai\Agents\PostContentGenerator;
 use App\Ai\Agents\PostContentHumanizer;
+use App\Ai\Templates\AiTemplateRegistry;
+use App\Ai\Templates\TemplateContext;
 use App\DataTransferObjects\Automation\NodeRunResult;
+use App\Enums\Ai\ContentStyle;
+use App\Enums\Ai\GeneratorFormat;
 use App\Enums\PostPlatform\ContentType;
 use App\Models\AutomationRun;
 use App\Models\SocialAccount;
@@ -16,7 +20,6 @@ use App\Models\Workspace;
 use App\Services\Ai\RecordAiUsage;
 use App\Services\Automation\ExpressionResolver;
 use App\Services\Automation\GenerateNodeValidator;
-use App\Services\Image\PostImagePipeline;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -48,41 +51,12 @@ class RunGenerateNode
             ->get()
             ->keyBy('id');
 
-        // Per-automation toggle: when off, the brand persona/voice is NOT
-        // injected, so the post stays faithful to a third-party source (news /
-        // RSS curation) instead of being rewritten in the brand's voice.
         $applyBrandVoice = (bool) data_get($config, 'use_brand_voice', true);
 
         $platformContext = $this->resolvePlatformContext($accountsConfig);
 
-        $agent = new PostContentGenerator(
-            workspace: $workspace,
-            format: $format,
-            slideCount: $slideCount,
-            platformContext: $platformContext,
-            applyBrandVoice: $applyBrandVoice,
-        );
-
-        $generatorResponse = $agent->prompt($prompt);
-
-        RecordAiUsage::recordText(
-            workspace: $workspace,
-            promptTokens: $generatorResponse->usage->promptTokens,
-            completionTokens: $generatorResponse->usage->completionTokens,
-            provider: (string) config('ai.default'),
-            model: (string) config('ai.default_text_model'),
-            metadata: ['agent' => 'post_generator', 'format' => $format, 'source' => 'automation'],
-        );
-
-        $structured = $generatorResponse->structured ?? [];
-
-        $structured = $this->humanize($workspace, $structured, $format, $applyBrandVoice, $platformContext);
-
-        $content = $format === 'carousel'
-            ? (string) data_get($structured, 'caption', '')
-            : (string) data_get($structured, 'content', '');
-
-        $user = $this->resolveUser($run);
+        $style = ContentStyle::tryFrom((string) data_get($config, 'style', ContentStyle::default()->value)) ?? ContentStyle::default();
+        $styleTemplate = app(AiTemplateRegistry::class)->find($style);
 
         $platforms = [];
         foreach ($accountsConfig as $entry) {
@@ -105,50 +79,71 @@ class RunGenerateNode
             ];
         }
 
-        // A single source of truth for image count: 0 = text-only (no image),
-        // 1 = single image, 2+ = carousel. For the single-image branch we only
-        // care whether at least one image was requested.
         $wantsImage = (int) data_get($config, 'target_slide_count', 1) >= 1;
 
         $brandAccount = $platforms !== []
             ? $activeAccounts->get(data_get($platforms[0], 'social_account_id'))
             : null;
 
-        $contentType = $platforms !== []
-            ? ContentType::tryFrom((string) data_get($platforms[0], 'content_type'))
-            : null;
+        $isCarousel = $format->isCarousel();
+        $imageCount = $isCarousel ? $slideCount : ($wantsImage ? 1 : 0);
 
-        $imageCount = $this->intendedImageCount($format, $slideCount, $wantsImage, $structured, $brandAccount);
+        $templateContext = new TemplateContext(
+            workspace: $workspace,
+            socialAccount: $brandAccount,
+            format: $platformContext ?? $format->value,
+            imageCount: $imageCount,
+            isCarousel: $isCarousel,
+            applyBrandVisuals: (bool) data_get($config, 'use_brand_visuals', true),
+        );
 
-        // Dry runs do the AI work (so the user sees a real generation) but
-        // never persist a Post. Downstream nodes (Publish) read `is_dry_run`
-        // and skip their persistence too.
+        $agent = new PostContentGenerator(
+            workspace: $workspace,
+            format: $format,
+            slideCount: $slideCount,
+            platformContext: $platformContext,
+            applyBrandVoice: $applyBrandVoice,
+            template: $styleTemplate,
+            templateContext: $templateContext,
+        );
+
+        $generatorResponse = $agent->prompt($prompt);
+
+        RecordAiUsage::recordText(
+            workspace: $workspace,
+            promptTokens: $generatorResponse->usage->promptTokens,
+            completionTokens: $generatorResponse->usage->completionTokens,
+            provider: (string) config('ai.default'),
+            model: (string) config('ai.default_text_model'),
+            metadata: ['agent' => 'post_generator', 'format' => $format->value, 'source' => 'automation'],
+        );
+
+        $structured = $generatorResponse->structured ?? [];
+
+        $structured = $this->humanize($workspace, $structured, $format, $style, $applyBrandVoice, $platformContext);
+
+        $intendedImageCount = $this->intendedImageCount($format, $slideCount, $wantsImage, $structured, $brandAccount, $style);
+
         if ($run->is_dry_run) {
+            $dryContent = $this->extractContent($structured, $format, $style);
+
             return NodeRunResult::completed(output: [
                 'generated' => [
                     'post_id' => null,
-                    'content' => $content,
+                    'content' => $dryContent,
                     'dry_run' => true,
-                    'image_count' => $imageCount,
+                    'image_count' => $intendedImageCount,
                 ],
             ]);
         }
 
-        $media = [];
+        $generated = $styleTemplate->assemble($structured, $templateContext);
 
-        $applyBrandVisuals = (bool) data_get($config, 'use_brand_visuals', true);
-
-        if ($brandAccount) {
-            if ($format === 'carousel') {
-                $media = app(PostImagePipeline::class)->forCarousel($workspace, $brandAccount, $structured, $contentType, $applyBrandVisuals);
-            } elseif ($wantsImage) {
-                $media = app(PostImagePipeline::class)->forSingle($workspace, $brandAccount, $structured, $contentType, $applyBrandVisuals);
-            }
-        }
+        $user = $this->resolveUser($run);
 
         $post = CreatePost::execute($workspace, $user, [
-            'content' => $content,
-            'media' => $media,
+            'content' => $generated->content,
+            'media' => $generated->media,
             'platforms' => $platforms,
         ]);
 
@@ -157,7 +152,7 @@ class RunGenerateNode
         return NodeRunResult::completed(output: [
             'generated' => [
                 'post_id' => $post->id,
-                'content' => $content,
+                'content' => $generated->content,
                 'post_url' => route('app.posts.show', $post->id),
             ],
         ]);
@@ -167,10 +162,14 @@ class RunGenerateNode
      * @param  array<string, mixed>  $structured
      * @return array<string, mixed>
      */
-    private function humanize(Workspace $workspace, array $structured, string $format, bool $applyBrandVoice = true, ?string $platformContext = null): array
+    private function humanize(Workspace $workspace, array $structured, GeneratorFormat $format, ContentStyle $style, bool $applyBrandVoice = true, ?string $platformContext = null): array
     {
+        if (! $style->humanizes()) {
+            return $structured;
+        }
+
         try {
-            $input = $format === 'carousel'
+            $input = $format->isCarousel()
                 ? [
                     'caption' => data_get($structured, 'caption', ''),
                     'slides' => array_map(
@@ -197,10 +196,10 @@ class RunGenerateNode
                 completionTokens: $response->usage->completionTokens,
                 provider: (string) config('ai.default'),
                 model: (string) config('ai.default_text_model'),
-                metadata: ['agent' => 'post_humanizer', 'format' => $format, 'source' => 'automation'],
+                metadata: ['agent' => 'post_humanizer', 'format' => $format->value, 'source' => 'automation'],
             );
 
-            if ($format === 'carousel') {
+            if ($format->isCarousel()) {
                 $structured['caption'] = data_get($humanized, 'caption', $structured['caption'] ?? '');
                 $originalSlides = $structured['slides'] ?? [];
                 $humanizedSlides = data_get($humanized, 'slides', []);
@@ -228,6 +227,26 @@ class RunGenerateNode
     }
 
     /**
+     * Extract the post caption from the raw structured output without calling
+     * assemble() (which triggers image generation). Used for dry-run responses
+     * so no pipeline work happens during test runs.
+     *
+     * @param  array<string, mixed>  $structured
+     */
+    private function extractContent(array $structured, GeneratorFormat $format, ContentStyle $style): string
+    {
+        if ($style->isTweetCard()) {
+            return $format->isCarousel()
+                ? (string) data_get($structured, 'caption', '')
+                : (string) data_get($structured, 'tweet_text', '');
+        }
+
+        return $format->isCarousel()
+            ? (string) data_get($structured, 'caption', '')
+            : (string) data_get($structured, 'content', '');
+    }
+
+    /**
      * Derive the generator format and slide count from per-account content types.
      *
      * Carousel-capable content types:
@@ -243,15 +262,10 @@ class RunGenerateNode
      *
      * @param  array<int, array{social_account_id: string, content_type: ?string, meta: array<string, mixed>}>  $accountsConfig
      * @param  array<string, mixed>  $config
-     * @return array{format: string, slide_count: int}
+     * @return array{format: GeneratorFormat, slide_count: int}
      */
     public function deriveFormat(array $accountsConfig, array $config): array
     {
-        // Multi-image capability comes from the same ContentType rules the
-        // publish flow uses — never a hardcoded list — so facebook_post,
-        // tiktok_photo, linkedin_carousel etc. are all recognised. We cap the
-        // slide count at MAX_GENERATED_IMAGES and at the tightest selected
-        // account's limit.
         $maxImagesAcross = 0;
         foreach ($accountsConfig as $entry) {
             $contentType = ContentType::tryFrom((string) data_get($entry, 'content_type'));
@@ -265,10 +279,10 @@ class RunGenerateNode
         if ($maxImagesAcross > 1 && $targetSlideCount > 1) {
             $cap = min(GenerateNodeValidator::MAX_GENERATED_IMAGES, $maxImagesAcross);
 
-            return ['format' => 'carousel', 'slide_count' => min($targetSlideCount, $cap)];
+            return ['format' => GeneratorFormat::Carousel, 'slide_count' => min($targetSlideCount, $cap)];
         }
 
-        return ['format' => 'single', 'slide_count' => 1];
+        return ['format' => GeneratorFormat::Single, 'slide_count' => 1];
     }
 
     /**
@@ -294,16 +308,21 @@ class RunGenerateNode
      * Number of images that would be attached for the resolved format. Used as
      * the dry-run indicator and mirrors the non-dry image generation branches:
      * one per slide for carousels, one for single posts when images are enabled.
+     * Tweet styles always produce one image per slide/post when an account is set.
      *
      * @param  array<string, mixed>  $structured
      */
-    private function intendedImageCount(string $format, int $slideCount, bool $wantsImage, array $structured, ?SocialAccount $brandAccount): int
+    private function intendedImageCount(GeneratorFormat $format, int $slideCount, bool $wantsImage, array $structured, ?SocialAccount $brandAccount, ContentStyle $style): int
     {
         if (! $brandAccount) {
             return 0;
         }
 
-        if ($format === 'carousel') {
+        if ($style->isTweetCard()) {
+            return $format->isCarousel() ? $slideCount : 1;
+        }
+
+        if ($format->isCarousel()) {
             $slides = data_get($structured, 'slides', []);
 
             return is_array($slides) ? count($slides) : $slideCount;
