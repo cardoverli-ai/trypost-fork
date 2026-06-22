@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { getPlatformLabel, getPlatformLogo } from '@/composables/usePlatformLogo';
+import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
 import date from '@/date';
 import dayjs from '@/dayjs';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -53,6 +54,8 @@ const props = defineProps<Props>();
 
 // Mobile detection
 const isMobile = ref(false);
+const { canCreatePost } = useWorkspaceRole();
+
 const createPostUrl = (isoDate: string | null = null) =>
     isoDate ? createPost.url({ query: { date: isoDate } }) : createPost.url();
 const checkMobile = () => {
@@ -277,7 +280,7 @@ const formatTime = (scheduledAt: string): string => {
                         </TabsList>
                     </Tabs>
 
-                    <Link :href="createPost.url()">
+                    <Link v-if="canCreatePost" :href="createPost.url()">
                         <Button>{{ $t('calendar.new_post') }}</Button>
                     </Link>
                 </div>
@@ -374,6 +377,7 @@ const formatTime = (scheduledAt: string): string => {
                     <div class="flex-1 space-y-2 overflow-y-auto p-2">
                         <!-- Add Post Button -->
                         <Link
+                            v-if="canCreatePost"
                             :href="createPostUrl(day.format('YYYY-MM-DD'))"
                             class="flex w-full items-center justify-center rounded-md border-2 border-dashed border-foreground/25 p-2 text-foreground/60 transition-colors hover:border-foreground hover:bg-foreground/5 hover:text-foreground"
                         >
@@ -471,6 +475,7 @@ const formatTime = (scheduledAt: string): string => {
                                     {{ day.format('D') }}
                                 </span>
                                 <Link
+                                    v-if="canCreatePost"
                                     :href="createPostUrl(day.format('YYYY-MM-DD'))"
                                     class="inline-flex size-6 items-center justify-center rounded-full border-2 border-foreground bg-card text-foreground opacity-0 shadow-2xs transition-all hover:rotate-90 hover:bg-violet-100 focus:opacity-100 group-hover:opacity-100"
                                 >

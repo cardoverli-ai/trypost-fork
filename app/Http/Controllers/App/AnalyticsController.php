@@ -42,6 +42,8 @@ class AnalyticsController extends Controller
     {
         $workspace = $request->user()->currentWorkspace;
 
+        $this->authorize('view', $workspace);
+
         $accounts = $workspace->socialAccounts()
             ->where('is_active', true)
             ->whereIn('platform', self::SUPPORTED_PLATFORMS)

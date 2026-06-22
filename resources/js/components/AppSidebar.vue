@@ -43,6 +43,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useActiveUrl } from '@/composables/useActiveUrl';
+import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
 import { accounts, analytics, calendar, settings as settingsHub } from '@/routes/app';
 import { index as assets } from '@/routes/app/assets';
 import { index as automations } from '@/routes/app/automations';
@@ -63,6 +64,8 @@ const currentWorkspace = computed<Workspace | null>(() => page.props.auth.curren
 const workspaces = computed<Workspace[]>(() => page.props.auth.workspaces as Workspace[]);
 const subscriptionPastDue = computed<boolean>(() => Boolean(page.props.auth.subscriptionPastDue));
 
+const { canCreatePost, canManageAutomations, canCreateWorkspace } = useWorkspaceRole();
+
 const mainNavItems = computed<NavItem[]>(() => [
     {
         title: trans('sidebar.posts.calendar'),
@@ -74,12 +77,16 @@ const mainNavItems = computed<NavItem[]>(() => [
         href: analytics.url(),
         icon: IconChartBar,
     },
-    {
-        title: trans('sidebar.automations'),
-        href: automations.url(),
-        icon: IconBolt,
-        badge: 'Beta',
-    },
+    ...(canManageAutomations.value
+        ? [
+              {
+                  title: trans('sidebar.automations'),
+                  href: automations.url(),
+                  icon: IconBolt,
+                  badge: 'Beta',
+              },
+          ]
+        : []),
 ]);
 
 const postsNavItems = computed<NavItem[]>(() => [
@@ -112,21 +119,26 @@ const workspaceNavItems = computed<NavItem[]>(() => [
         href: accounts.url(),
         icon: IconAffiliate,
     },
-    {
-        title: trans('sidebar.workspace.signatures'),
-        href: signatures.url(),
-        icon: IconHash,
-    },
-    {
-        title: trans('sidebar.workspace.labels'),
-        href: labels.url(),
-        icon: IconTag,
-    },
-    {
-        title: trans('sidebar.workspace.assets'),
-        href: assets.url(),
-        icon: IconPhoto,
-    },
+    // Signatures / labels / assets are content-authoring tools (member+ only).
+    ...(canCreatePost.value
+        ? [
+              {
+                  title: trans('sidebar.workspace.signatures'),
+                  href: signatures.url(),
+                  icon: IconHash,
+              },
+              {
+                  title: trans('sidebar.workspace.labels'),
+                  href: labels.url(),
+                  icon: IconTag,
+              },
+              {
+                  title: trans('sidebar.workspace.assets'),
+                  href: assets.url(),
+                  icon: IconPhoto,
+              },
+          ]
+        : []),
 ]);
 
 const switchWorkspace = (workspaceId: string) => {
@@ -176,11 +188,13 @@ const handleCreateWorkspace = () => {
                                     {{ workspace.name }}
                                 </DropdownMenuItem>
                             </div>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem @click="handleCreateWorkspace">
-                                <IconPlus class="size-4" />
-                                {{ $t('sidebar.create_workspace') }}
-                            </DropdownMenuItem>
+                            <template v-if="canCreateWorkspace">
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem @click="handleCreateWorkspace">
+                                    <IconPlus class="size-4" />
+                                    {{ $t('sidebar.create_workspace') }}
+                                </DropdownMenuItem>
+                            </template>
                         </DropdownMenuContent>
                     </DropdownMenu>
                 </SidebarMenuItem>
@@ -189,7 +203,7 @@ const handleCreateWorkspace = () => {
 
         <SidebarContent>
             <!-- Create Post Button -->
-            <div v-if="currentWorkspace" class="px-2 py-2">
+            <div v-if="currentWorkspace && canCreatePost" class="px-2 py-2">
                 <Link :href="createPost.url()" class="block">
                     <Button class="w-full">
                         {{ $t('sidebar.create_post') }}

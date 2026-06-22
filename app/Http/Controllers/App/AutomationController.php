@@ -48,6 +48,8 @@ class AutomationController extends Controller
 {
     public function index(ListAutomations $list): Response
     {
+        $this->authorize('viewAny', Automation::class);
+
         $workspace = request()->user()->currentWorkspace;
 
         $automations = Inertia::scroll(fn () => AutomationResource::collection(
@@ -61,6 +63,8 @@ class AutomationController extends Controller
 
     public function store(StoreAutomationRequest $request, CreateAutomation $create): RedirectResponse
     {
+        $this->authorize('create', Automation::class);
+
         $automation = $create(
             $request->user()->currentWorkspace,
             $request->user(),
@@ -71,6 +75,8 @@ class AutomationController extends Controller
 
     public function show(Automation $automation): RedirectResponse
     {
+        $this->authorize('view', $automation);
+
         return redirect()->route('app.automations.workflow', $automation->id);
     }
 

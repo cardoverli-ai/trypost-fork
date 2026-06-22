@@ -10,6 +10,7 @@ import SettingsTabsNav from '@/components/settings/SettingsTabsNav.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { edit as accountEdit, update as accountUpdate } from '@/routes/app/account';
 import { index as billingIndex } from '@/routes/app/billing';
@@ -26,10 +27,14 @@ defineProps<{
     selfHosted: boolean;
 }>();
 
+const { canManageBilling } = useWorkspaceRole();
+
 const tabs = computed(() => [
     { name: 'account', label: trans('settings.account.tabs.account'), href: accountEdit().url },
     { name: 'usage', label: trans('settings.account.tabs.usage'), href: usageIndex().url },
-    { name: 'billing', label: trans('settings.account.tabs.billing'), href: billingIndex().url },
+    ...(canManageBilling.value
+        ? [{ name: 'billing', label: trans('settings.account.tabs.billing'), href: billingIndex().url }]
+        : []),
 ]);
 </script>
 

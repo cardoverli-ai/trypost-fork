@@ -25,8 +25,9 @@ use Illuminate\Support\Facades\Queue;
 beforeEach(function () {
     Bus::fake();
 
-    $this->workspace = Workspace::factory()->create();
-    $this->user = User::factory()->create(['current_workspace_id' => $this->workspace->id]);
+    $this->user = User::factory()->create();
+    $this->workspace = Workspace::factory()->create(['account_id' => $this->user->account_id]);
+    $this->user->update(['current_workspace_id' => $this->workspace->id]);
     $this->workspace->members()->attach($this->user->id, ['role' => Role::Admin->value]);
 });
 

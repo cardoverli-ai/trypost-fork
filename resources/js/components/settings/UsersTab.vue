@@ -22,6 +22,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useWorkspaceRole } from '@/composables/useWorkspaceRole';
 import { destroy as destroyInvite } from '@/routes/app/invites';
 import { remove as removeMemberRoute, updateRole } from '@/routes/app/members';
 import { WorkspaceRole } from '@/types/workspace-role';
@@ -65,6 +66,8 @@ const roleIcon = (role: string) => {
 const page = usePage();
 const currentUserId = computed(() => page.props.auth.user.id);
 
+const { canManageTeam } = useWorkspaceRole();
+
 const inviteDialogOpen = ref(false);
 const removeMemberModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
 const cancelInvitationModal = ref<InstanceType<typeof ConfirmDeleteModal> | null>(null);
@@ -86,7 +89,7 @@ const changeRole = (member: Member, role: string) => {
                 :description="$t('settings.workspace.members_description')"
             />
 
-            <Button @click="handleInviteClick">
+            <Button v-if="canManageTeam" @click="handleInviteClick">
                 {{ $t('settings.members.invite.submit') }}
             </Button>
         </div>
@@ -110,7 +113,7 @@ const changeRole = (member: Member, role: string) => {
                         </Badge>
                     </TableCell>
                     <TableCell>
-                        <DropdownMenu v-if="member.id !== currentUserId">
+                        <DropdownMenu v-if="canManageTeam && member.id !== currentUserId">
                             <DropdownMenuTrigger as-child>
                                 <Button variant="outline" size="icon" class="size-8">
                                     <IconDots class="size-4" />
@@ -153,6 +156,7 @@ const changeRole = (member: Member, role: string) => {
                     </TableCell>
                     <TableCell>
                         <Button
+                            v-if="canManageTeam"
                             variant="outline"
                             size="icon"
                             class="size-8 bg-rose-100 hover:bg-rose-200"

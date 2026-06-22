@@ -21,17 +21,20 @@ class AutomationPolicy
 
     public function create(User $user): bool
     {
-        return $user->currentWorkspace !== null;
+        return $user->currentWorkspace !== null
+            && $user->can('createPost', $user->currentWorkspace);
     }
 
     public function update(User $user, Automation $automation): bool
     {
-        return $automation->workspace_id === $user->current_workspace_id;
+        return $automation->workspace_id === $user->current_workspace_id
+            && $user->can('createPost', $user->currentWorkspace);
     }
 
     public function delete(User $user, Automation $automation): bool
     {
-        return $automation->workspace_id === $user->current_workspace_id;
+        return $automation->workspace_id === $user->current_workspace_id
+            && $user->can('createPost', $user->currentWorkspace);
     }
 
     public function activate(User $user, Automation $automation): bool
