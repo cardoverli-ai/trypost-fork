@@ -43,7 +43,6 @@ class InstagramController extends SocialController
         session([
             'social_connect_workspace' => $workspace->id,
             'social_reconnect_id' => null,
-            'social_connect_onboarding' => $request->boolean('onboarding'),
         ]);
 
         $url = Socialite::driver($this->driver)

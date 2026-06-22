@@ -40,7 +40,6 @@ class LinkedInPageController extends SocialController
         session([
             'social_connect_workspace' => $workspace->id,
             'linkedin_page_reconnect_id' => null,
-            'social_connect_onboarding' => $request->boolean('onboarding'),
         ]);
 
         return Inertia::location(

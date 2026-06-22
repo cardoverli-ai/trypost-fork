@@ -49,7 +49,6 @@ class InstagramFacebookController extends SocialController
         session([
             'social_connect_workspace' => $workspace->id,
             'social_reconnect_id' => null,
-            'social_connect_onboarding' => $request->boolean('onboarding'),
         ]);
 
         $url = Socialite::driver($this->driver)
@@ -234,9 +233,7 @@ class InstagramFacebookController extends SocialController
             ]),
         );
 
-        $isOnboarding = session('social_connect_onboarding', false);
-
-        return $this->popupCallback(true, __('accounts.popup_callback.connected'), $this->platform->value, $isOnboarding);
+        return $this->popupCallback(true, __('accounts.popup_callback.connected'), $this->platform->value);
     }
 
     private function fetchPagesWithInstagram(string $userToken): array

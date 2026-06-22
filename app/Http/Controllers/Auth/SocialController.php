@@ -120,7 +120,6 @@ class SocialController extends Controller
         }
 
         session(['social_connect_workspace' => $workspace->id]);
-        session(['social_connect_onboarding' => $request->boolean('onboarding')]);
 
         return Inertia::location(
             Socialite::driver($driver)
@@ -186,12 +185,7 @@ class SocialController extends Controller
 
     protected function forgetSocialConnectSession(): void
     {
-        session()->forget(['social_connect_workspace', 'social_connect_onboarding']);
-    }
-
-    protected function getRedirectRoute(): string
-    {
-        return session('social_connect_onboarding', false) ? 'app.onboarding.connect' : 'app.accounts';
+        session()->forget('social_connect_workspace');
     }
 
     /**

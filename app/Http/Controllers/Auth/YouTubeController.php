@@ -45,7 +45,6 @@ class YouTubeController extends SocialController
         session([
             'social_connect_workspace' => $workspace->id,
             'social_reconnect_id' => null,
-            'social_connect_onboarding' => $request->boolean('onboarding'),
         ]);
 
         return $this->redirectToGoogle();
@@ -154,14 +153,13 @@ class YouTubeController extends SocialController
         $channels = $this->fetchChannels(data_get($oauthData, 'access_token'));
 
         if (empty($channels)) {
-            $redirectRoute = $this->getRedirectRoute();
             $this->forgetSocialConnectSession();
             session()->forget('youtube_oauth');
 
             session()->flash('flash.banner', __('accounts.flash.no_youtube_channels'));
             session()->flash('flash.bannerStyle', 'danger');
 
-            return redirect()->route($redirectRoute);
+            return redirect()->route('app.accounts');
         }
 
         return inertia('accounts/YouTubeChannelSelect', [

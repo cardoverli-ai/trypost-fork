@@ -31,12 +31,10 @@ const props = withDefaults(
     defineProps<{
         platforms: AvailablePlatform[];
         connectedAccounts?: ConnectedAccount[];
-        onboarding?: boolean;
         gridClass?: string;
     }>(),
     {
         connectedAccounts: () => [],
-        onboarding: false,
         gridClass: 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5',
     },
 );
@@ -185,10 +183,7 @@ const openConnect = (platformValue: string) => {
         return;
     }
 
-    openOAuthPopup(
-        platformValue,
-        props.onboarding ? { onboarding: '1' } : undefined,
-    );
+    openOAuthPopup(platformValue);
 };
 
 const connectPlatform = (platformValue: string) => {

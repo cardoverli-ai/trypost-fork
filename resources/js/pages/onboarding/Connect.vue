@@ -54,7 +54,6 @@ const submit = (): void => {
             <NetworkConnectGrid
                 :platforms="platforms"
                 :connected-accounts="accounts"
-                onboarding
                 grid-class="grid-cols-3 sm:grid-cols-4 lg:grid-cols-7"
             />
 
