@@ -35,7 +35,7 @@ class UsageController extends Controller
 
         return Inertia::render('settings/account/Usage', [
             'usage' => [
-                'workspaceCount' => $account->workspaces()->count(),
+                'workspaceCount' => $account->workspaces->count(),
                 'socialAccountCount' => $totalSocialAccounts,
                 'memberCount' => $totalMembers,
                 'creditsUsed' => BillingCycle::for($account)->usedCredits(),

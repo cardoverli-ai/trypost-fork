@@ -21,8 +21,9 @@ class CreateUser
      */
     public static function execute(array $data, array $utmParameters = []): User
     {
-        $user = DB::transaction(function () use ($data, $utmParameters): User {
-            $isInviteRegistration = data_get($data, 'is_invite', false);
+        $isInviteRegistration = (bool) data_get($data, 'is_invite', false);
+
+        $user = DB::transaction(function () use ($data, $utmParameters, $isInviteRegistration): User {
             $requiresCardForTrial = (bool) config('trypost.billing.require_card_for_trial', true);
             $accountAttributes = [
                 'name' => data_get($data, 'name')."'s Account",
@@ -49,12 +50,12 @@ class CreateUser
 
             $account->update(['owner_id' => $user->id]);
 
-            if (! $isInviteRegistration) {
-                CreateWorkspace::execute($user, ['name' => data_get($data, 'name')."'s Workspace"]);
-            }
-
             return $user;
         });
+
+        if (! $isInviteRegistration) {
+            CreateWorkspace::execute($user, ['name' => data_get($data, 'name')."'s Workspace"]);
+        }
 
         if (PostHogService::isEnabled()) {
             SyncUser::dispatch((string) $user->id);

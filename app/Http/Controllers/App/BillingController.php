@@ -130,6 +130,8 @@ class BillingController extends Controller
 
         $subscription = $account->subscription(Account::SUBSCRIPTION_NAME);
 
+        abort_if($subscription === null, SymfonyResponse::HTTP_UNPROCESSABLE_ENTITY, 'No active subscription');
+
         if ($subscription->stripe_price === $yearlyPriceId) {
             return redirect()->route('app.billing.index');
         }
