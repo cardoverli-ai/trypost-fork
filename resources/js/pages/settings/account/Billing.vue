@@ -67,7 +67,7 @@ const displayPrice = (slug: string | undefined): string => {
     return trans(`billing.subscribe.prices.${slug}.${key}`);
 };
 
-const workspacesLabel = computed(() => transChoice('billing.plan.workspaces', props.workspaceCount, { count: props.workspaceCount }));
+const workspacesLabel = computed(() => transChoice('billing.plan.workspaces', props.workspaceCount, { count: String(props.workspaceCount) }));
 
 const monthlyPrice = computed(() => (props.plan ? trans(`billing.subscribe.prices.${props.plan.slug}.monthly`) : ''));
 const yearlyPerMonthPrice = computed(() => (props.plan ? trans(`billing.subscribe.prices.${props.plan.slug}.yearly_per_month`) : ''));

@@ -41,8 +41,6 @@ const props = withDefaults(
     },
 );
 
-const emit = defineEmits<{ connect: [] }>();
-
 const getPlatformDescription = (platform: string): string =>
     trans(`accounts.descriptions.${platform}`);
 
@@ -182,8 +180,6 @@ const needsReconnect = (account: ConnectedAccount): boolean =>
     account.status === 'disconnected' || account.status === 'token_expired';
 
 const openConnect = (platformValue: string) => {
-    emit('connect');
-
     if (platformValue === Platform.Telegram) {
         telegramOpen.value = true;
         return;

@@ -32,6 +32,20 @@ test('during trial the allotment is the monthly amount even on a yearly price', 
     expect(BillingCycle::for($account)->creditAllotment())->toBe(2500);
 });
 
+test('during trial the window spans the subscription creation to the trial end', function () {
+    Carbon::setTestNow('2026-06-20 12:00:00');
+
+    $account = billingAccount('price_year', [
+        'created_at' => Carbon::parse('2026-06-18'),
+        'trial_ends_at' => Carbon::parse('2026-06-25'),
+    ], workspaces: 1);
+
+    $cycle = BillingCycle::for($account);
+
+    expect($cycle->periodStart()->toDateString())->toBe('2026-06-18')
+        ->and($cycle->periodEnd()->toDateString())->toBe('2026-06-25');
+});
+
 test('monthly cycle window spans the anchor day to the next month', function () {
     Carbon::setTestNow('2026-06-20 12:00:00');
     $account = billingAccount('price_month', ['created_at' => Carbon::parse('2026-03-05')]);

@@ -135,6 +135,50 @@ test('linkedin oauth callback creates account', function () {
     ]);
 });
 
+test('linkedin callback shows network_taken when the linkedin network is already connected', function () {
+    config()->set('trypost.self_hosted', false);
+
+    // A LinkedIn Page occupies the shared "linkedin" network for this workspace.
+    SocialAccount::factory()->linkedinPage()->create([
+        'workspace_id' => $this->workspace->id,
+        'platform_user_id' => 'existing-linkedin-page',
+    ]);
+
+    session(['social_connect_workspace' => $this->workspace->id]);
+
+    $socialiteUser = Mockery::mock(SocialiteUser::class);
+    $socialiteUser->shouldReceive('getId')->andReturn('new-profile-id');
+    $socialiteUser->shouldReceive('getName')->andReturn('John Doe');
+    $socialiteUser->shouldReceive('getAvatar')->andReturn(null);
+    $socialiteUser->token = 'test-access-token';
+    $socialiteUser->refreshToken = 'test-refresh-token';
+    $socialiteUser->expiresIn = 5184000;
+    $socialiteUser->approvedScopes = ['openid', 'profile', 'email', 'w_member_social'];
+
+    Socialite::shouldReceive('driver')
+        ->with('linkedin')
+        ->andReturn(Mockery::mock(['user' => $socialiteUser]));
+
+    Http::fake([
+        'https://api.linkedin.com/v2/me*' => Http::response([
+            'id' => 'new-profile-id',
+            'vanityName' => 'johndoe',
+        ], 200),
+    ]);
+
+    $response = $this->actingAs($this->user)->get(route('app.social.linkedin.callback'));
+
+    $response->assertOk();
+    $response->assertViewIs('auth.social-callback');
+    $response->assertViewHas('success', false);
+    $response->assertViewHas('message', __('accounts.popup_callback.network_taken'));
+
+    $this->assertDatabaseMissing('social_accounts', [
+        'platform' => Platform::LinkedIn->value,
+        'platform_user_id' => 'new-profile-id',
+    ]);
+});
+
 test('linkedin oauth callback splits comma-separated approvedScopes before saving', function () {
     session(['social_connect_workspace' => $this->workspace->id]);
 

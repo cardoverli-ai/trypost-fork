@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Enums\SocialAccount\Platform as SocialPlatform;
 use App\Enums\SocialAccount\Status;
+use App\Exceptions\SocialAccount\NetworkAlreadyConnectedException;
 use App\Models\Workspace;
 use App\Services\Social\LinkedInTokenSynchronizer;
 use Illuminate\Http\RedirectResponse;
@@ -83,6 +84,8 @@ class LinkedInController extends SocialController
             app(LinkedInTokenSynchronizer::class)->syncTokens($account);
 
             return $this->popupCallback(true, __('accounts.popup_callback.connected'), $this->platform->value);
+        } catch (NetworkAlreadyConnectedException $e) {
+            return $this->popupCallback(false, __('accounts.popup_callback.network_taken'), $this->platform->value);
         } catch (\Exception $e) {
             Log::error('LinkedIn OAuth Error', [
                 'error' => $e->getMessage(),

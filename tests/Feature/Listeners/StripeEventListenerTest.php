@@ -433,7 +433,7 @@ test('subscription created forwards a null previous plan when account had none',
 });
 
 // ========================================
-// Pennant feature cache invalidation
+// Plan mapping by Stripe price id
 // ========================================
 
 test('subscription updated maps the plan by price id', function () {
