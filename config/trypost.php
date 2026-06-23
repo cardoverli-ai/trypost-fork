@@ -151,6 +151,10 @@ return [
             // here, then the resulting blob is embedded in the post record.
             'video_service' => env('BLUESKY_VIDEO_SERVICE', 'https://video.bsky.app'),
             'video_service_did' => env('BLUESKY_VIDEO_SERVICE_DID', 'did:web:video.bsky.app'),
+            // Seconds between transcode job-status polls.
+            'video_poll_seconds' => env('BLUESKY_VIDEO_POLL_SECONDS', 2),
+            // Bluesky rejects videos larger than 100 MB; skip oversized files early.
+            'video_max_bytes' => env('BLUESKY_VIDEO_MAX_BYTES', 100 * 1024 * 1024),
             // PLC directory, used to resolve an account's real PDS host from its DID.
             'plc_directory' => env('BLUESKY_PLC_DIRECTORY', 'https://plc.directory'),
         ],

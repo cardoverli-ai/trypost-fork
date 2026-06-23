@@ -27,8 +27,6 @@ final class BlueskyLexicon
 
     public const VIDEO_GET_JOB_STATUS = 'app.bsky.video.getJobStatus';
 
-    public const VIDEO_GET_UPLOAD_LIMITS = 'app.bsky.video.getUploadLimits';
-
     public const FEED_POST = 'app.bsky.feed.post';
 
     public const GET_POSTS = 'app.bsky.feed.getPosts';
